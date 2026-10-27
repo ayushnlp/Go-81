@@ -1,0 +1,1846 @@
+{
+  "openapi": "3.1.0",
+  "info": {
+    "title": "Go 81 Sovereign Agent & Orchestrator API",
+    "description": "Local-first Sovereign AI Agent Orchestrator with memory handshake, real-time SSE execution telemetry, and human-in-the-loop approval gates.",
+    "version": "1.0.0"
+  },
+  "paths": {
+    "/api/memory/events": {
+      "post": {
+        "tags": [
+          "Memory & Security"
+        ],
+        "summary": "Record Episodic Event",
+        "description": "Stores an episodic event (user message, agent thought, tool execution).",
+        "operationId": "record_episodic_event_api_memory_events_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/EventCreate"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/EpisodicEvent"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/memory/semantic": {
+      "post": {
+        "tags": [
+          "Memory & Security"
+        ],
+        "summary": "Record Semantic Memory",
+        "description": "Stores a structured fact or preference with deterministic deduplication.",
+        "operationId": "record_semantic_memory_api_memory_semantic_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/SemanticMemoryCreate"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SemanticMemory"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/memory": {
+      "get": {
+        "tags": [
+          "Memory & Security"
+        ],
+        "summary": "List And Search Memories",
+        "description": "Lists and searches memories in process memory with pagination.",
+        "operationId": "list_and_search_memories_api_memory_get",
+        "parameters": [
+          {
+            "name": "query",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "In-process deterministic keyword search query",
+              "title": "Query"
+            },
+            "description": "In-process deterministic keyword search query"
+          },
+          {
+            "name": "memory_type",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "$ref": "#/components/schemas/MemoryType"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Filter by episodic or semantic",
+              "title": "Memory Type"
+            },
+            "description": "Filter by episodic or semantic"
+          },
+          {
+            "name": "category",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Filter by category or event type",
+              "title": "Category"
+            },
+            "description": "Filter by category or event type"
+          },
+          {
+            "name": "limit",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "maximum": 500,
+              "minimum": 1,
+              "default": 50,
+              "title": "Limit"
+            }
+          },
+          {
+            "name": "offset",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "minimum": 0,
+              "default": 0,
+              "title": "Offset"
+            }
+          },
+          {
+            "name": "include_expired",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "boolean",
+              "default": false,
+              "title": "Include Expired"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/MemoryRecord"
+                  },
+                  "title": "Response List And Search Memories Api Memory Get"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/memory/{memory_id}": {
+      "get": {
+        "tags": [
+          "Memory & Security"
+        ],
+        "summary": "Inspect Memory",
+        "description": "Inspects a single memory by ID, decrypting its payload.",
+        "operationId": "inspect_memory_api_memory__memory_id__get",
+        "parameters": [
+          {
+            "name": "memory_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Memory Id"
+            }
+          },
+          {
+            "name": "include_deleted",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "boolean",
+              "default": false,
+              "title": "Include Deleted"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/MemoryRecord"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      },
+      "put": {
+        "tags": [
+          "Memory & Security"
+        ],
+        "summary": "Edit Memory",
+        "description": "User-controlled update of memory values, confidence, or verification status.",
+        "operationId": "edit_memory_api_memory__memory_id__put",
+        "parameters": [
+          {
+            "name": "memory_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Memory Id"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/MemoryUpdate"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/MemoryRecord"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      },
+      "delete": {
+        "tags": [
+          "Memory & Security"
+        ],
+        "summary": "Delete Memory",
+        "description": "Deletes a memory record (soft tombstone or permanent hard erasure).",
+        "operationId": "delete_memory_api_memory__memory_id__delete",
+        "parameters": [
+          {
+            "name": "memory_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Memory Id"
+            }
+          },
+          {
+            "name": "hard",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "boolean",
+              "description": "Permanent cryptographic overwrite if true, tombstone if false",
+              "default": false,
+              "title": "Hard"
+            },
+            "description": "Permanent cryptographic overwrite if true, tombstone if false"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "additionalProperties": true,
+                  "title": "Response Delete Memory Api Memory  Memory Id  Delete"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/memory/export/all": {
+      "get": {
+        "tags": [
+          "Memory & Security"
+        ],
+        "summary": "Export Memories",
+        "description": "Exports active memories in decrypted JSON format for user portability.",
+        "operationId": "export_memories_api_memory_export_all_get",
+        "parameters": [
+          {
+            "name": "memory_type",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "$ref": "#/components/schemas/MemoryType"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Memory Type"
+            }
+          },
+          {
+            "name": "category",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Category"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/MemoryExport"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/memory/consolidate": {
+      "post": {
+        "tags": [
+          "Memory & Security"
+        ],
+        "summary": "Trigger Consolidation",
+        "description": "Promotes recurring episodic events into semantic facts and prunes expired data.",
+        "operationId": "trigger_consolidation_api_memory_consolidate_post",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "additionalProperties": true,
+                  "type": "object",
+                  "title": "Response Trigger Consolidation Api Memory Consolidate Post"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/tasks/incomplete": {
+      "get": {
+        "tags": [
+          "Memory & Security"
+        ],
+        "summary": "List Incomplete Tasks",
+        "description": "Returns all unfinished tasks requiring recovery or continuation after reboot.",
+        "operationId": "list_incomplete_tasks_api_tasks_incomplete_get",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "items": {
+                    "$ref": "#/components/schemas/TaskCheckpoint"
+                  },
+                  "type": "array",
+                  "title": "Response List Incomplete Tasks Api Tasks Incomplete Get"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/tasks/checkpoints": {
+      "post": {
+        "tags": [
+          "Memory & Security"
+        ],
+        "summary": "Save Task Checkpoint",
+        "description": "Saves an encrypted workflow task checkpoint.",
+        "operationId": "save_task_checkpoint_api_tasks_checkpoints_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/TaskCheckpoint"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "additionalProperties": {
+                    "type": "string"
+                  },
+                  "type": "object",
+                  "title": "Response Save Task Checkpoint Api Tasks Checkpoints Post"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/security/check-permission": {
+      "post": {
+        "tags": [
+          "Memory & Security"
+        ],
+        "summary": "Check Permission",
+        "description": "Evaluates whether an agent action is authorized under default-deny policy.",
+        "operationId": "check_permission_api_security_check_permission_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/PermissionCheckRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PermissionDecision"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/security/approve": {
+      "post": {
+        "tags": [
+          "Memory & Security"
+        ],
+        "summary": "Grant Human Approval",
+        "description": "User-facing endpoint to issue an ephemeral approval token for dangerous tools.",
+        "operationId": "grant_human_approval_api_security_approve_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/GrantApprovalRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "additionalProperties": true,
+                  "type": "object",
+                  "title": "Response Grant Human Approval Api Security Approve Post"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/tasks": {
+      "get": {
+        "tags": [
+          "Tasks & DAGs"
+        ],
+        "summary": "List Tasks",
+        "description": "Lists all active and completed task DAGs.",
+        "operationId": "list_tasks_api_tasks_get",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "items": {
+                    "$ref": "#/components/schemas/TaskDAG"
+                  },
+                  "type": "array",
+                  "title": "Response List Tasks Api Tasks Get"
+                }
+              }
+            }
+          }
+        }
+      },
+      "post": {
+        "tags": [
+          "Tasks & DAGs"
+        ],
+        "summary": "Create And Start Task",
+        "description": "Creates a TaskDAG via TaskPlanner (incorporating verified facts & user preferences)\nand starts asynchronous DAG execution.",
+        "operationId": "create_and_start_task_api_tasks_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CreateTaskRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/TaskDAG"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/tasks/{task_id}": {
+      "get": {
+        "tags": [
+          "Tasks & DAGs"
+        ],
+        "summary": "Get Task By Id",
+        "description": "Retrieves single TaskDAG by ID.",
+        "operationId": "get_task_by_id_api_tasks__task_id__get",
+        "parameters": [
+          {
+            "name": "task_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Task Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/TaskDAG"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/tasks/{task_id}/events/stream": {
+      "get": {
+        "tags": [
+          "Tasks & DAGs"
+        ],
+        "summary": "Stream Task Events",
+        "description": "Milestone 6 Requirement:\nSSE event stream endpoint setting media_type='text/event-stream'\nand flushing task progress and approval events in real time.",
+        "operationId": "stream_task_events_api_tasks__task_id__events_stream_get",
+        "parameters": [
+          {
+            "name": "task_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Task Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response"
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/approvals": {
+      "get": {
+        "tags": [
+          "Approval Gatekeeper"
+        ],
+        "summary": "List Approvals",
+        "description": "Lists all tasks currently paused awaiting human authorization.",
+        "operationId": "list_approvals_api_approvals_get",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/approvals/{approval_id}": {
+      "post": {
+        "tags": [
+          "Approval Gatekeeper"
+        ],
+        "summary": "Submit Approval Decision",
+        "description": "Milestone 6 Requirement:\nSuccessfully resumes paused DAG branches when approved.",
+        "operationId": "submit_approval_decision_api_approvals__approval_id__post",
+        "parameters": [
+          {
+            "name": "approval_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Approval Id"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ApprovalDecisionRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/permissions/approve": {
+      "post": {
+        "tags": [
+          "Approval Gatekeeper"
+        ],
+        "summary": "Approve Permission Alias",
+        "description": "Alias compatible with Member 3 frontend contract.",
+        "operationId": "approve_permission_alias_api_permissions_approve_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "additionalProperties": true,
+                "type": "object",
+                "title": "Req"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/": {
+      "get": {
+        "tags": [
+          "Health"
+        ],
+        "summary": "Root Info",
+        "description": "Service status and component metadata.",
+        "operationId": "root_info__get",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          }
+        }
+      }
+    },
+    "/health": {
+      "get": {
+        "tags": [
+          "Health"
+        ],
+        "summary": "Health Check",
+        "description": "Liveness probe.",
+        "operationId": "health_check_health_get",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          }
+        }
+      }
+    }
+  },
+  "components": {
+    "schemas": {
+      "ApprovalDecisionRequest": {
+        "properties": {
+          "decision": {
+            "type": "string",
+            "title": "Decision",
+            "description": "'approved' or 'rejected'",
+            "default": "approved"
+          },
+          "notes": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Notes",
+            "description": "Optional operator feedback or constraint notes"
+          }
+        },
+        "type": "object",
+        "title": "ApprovalDecisionRequest"
+      },
+      "CreateTaskRequest": {
+        "properties": {
+          "goal": {
+            "type": "string",
+            "title": "Goal",
+            "description": "User goal or task instruction"
+          },
+          "priority": {
+            "type": "string",
+            "title": "Priority",
+            "default": "normal"
+          }
+        },
+        "type": "object",
+        "required": [
+          "goal"
+        ],
+        "title": "CreateTaskRequest"
+      },
+      "DAGStep": {
+        "properties": {
+          "step_id": {
+            "type": "string",
+            "title": "Step Id"
+          },
+          "step_number": {
+            "type": "integer",
+            "title": "Step Number",
+            "default": 1
+          },
+          "title": {
+            "type": "string",
+            "title": "Title",
+            "description": "Human-readable step title"
+          },
+          "skill_name": {
+            "type": "string",
+            "title": "Skill Name",
+            "description": "Target registered skill or tool"
+          },
+          "parameters": {
+            "additionalProperties": true,
+            "type": "object",
+            "title": "Parameters"
+          },
+          "dependencies": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Dependencies",
+            "description": "IDs of prerequisite steps"
+          },
+          "risk_level": {
+            "$ref": "#/components/schemas/RiskLevel",
+            "default": "LOW"
+          },
+          "requires_approval": {
+            "type": "boolean",
+            "title": "Requires Approval",
+            "default": false
+          },
+          "status": {
+            "type": "string",
+            "title": "Status",
+            "description": "PENDING, RUNNING, PAUSED_APPROVAL, COMPLETED, FAILED",
+            "default": "PENDING"
+          },
+          "output": {
+            "anyOf": [
+              {},
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Output"
+          },
+          "approval_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Approval Id"
+          }
+        },
+        "type": "object",
+        "required": [
+          "title",
+          "skill_name"
+        ],
+        "title": "DAGStep",
+        "description": "Represents a single step within a Task execution DAG."
+      },
+      "EpisodicEvent": {
+        "properties": {
+          "id": {
+            "type": "string",
+            "title": "Id"
+          },
+          "session_id": {
+            "type": "string",
+            "title": "Session Id"
+          },
+          "event_type": {
+            "type": "string",
+            "title": "Event Type"
+          },
+          "content": {
+            "additionalProperties": true,
+            "type": "object",
+            "title": "Content"
+          },
+          "source_ref": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Source Ref"
+          },
+          "created_at": {
+            "type": "string",
+            "title": "Created At"
+          },
+          "expires_at": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Expires At"
+          },
+          "is_deleted": {
+            "type": "boolean",
+            "title": "Is Deleted",
+            "default": false
+          }
+        },
+        "type": "object",
+        "required": [
+          "id",
+          "session_id",
+          "event_type",
+          "content",
+          "created_at"
+        ],
+        "title": "EpisodicEvent"
+      },
+      "EventCreate": {
+        "properties": {
+          "session_id": {
+            "type": "string",
+            "title": "Session Id",
+            "description": "Active session ID"
+          },
+          "event_type": {
+            "type": "string",
+            "title": "Event Type",
+            "description": "Event type",
+            "default": "user_message"
+          },
+          "content": {
+            "additionalProperties": true,
+            "type": "object",
+            "title": "Content",
+            "description": "Event content dictionary"
+          },
+          "source_ref": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Source Ref",
+            "description": "Origin source reference"
+          },
+          "ttl_seconds": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Ttl Seconds",
+            "description": "Retention time-to-live in seconds"
+          },
+          "metadata": {
+            "additionalProperties": true,
+            "type": "object",
+            "title": "Metadata",
+            "description": "Additional metadata"
+          }
+        },
+        "type": "object",
+        "required": [
+          "session_id",
+          "content"
+        ],
+        "title": "EventCreate",
+        "description": "Input contract for storing an episodic event."
+      },
+      "GrantApprovalRequest": {
+        "properties": {
+          "action": {
+            "type": "string",
+            "title": "Action"
+          },
+          "resource": {
+            "type": "string",
+            "title": "Resource",
+            "default": "*"
+          },
+          "ttl_seconds": {
+            "type": "integer",
+            "maximum": 3600.0,
+            "minimum": 10.0,
+            "title": "Ttl Seconds",
+            "default": 300
+          }
+        },
+        "type": "object",
+        "required": [
+          "action"
+        ],
+        "title": "GrantApprovalRequest"
+      },
+      "HTTPValidationError": {
+        "properties": {
+          "detail": {
+            "items": {
+              "$ref": "#/components/schemas/ValidationError"
+            },
+            "type": "array",
+            "title": "Detail"
+          }
+        },
+        "type": "object",
+        "title": "HTTPValidationError"
+      },
+      "MemoryExport": {
+        "properties": {
+          "exported_at": {
+            "type": "string",
+            "title": "Exported At"
+          },
+          "total_records": {
+            "type": "integer",
+            "title": "Total Records"
+          },
+          "records": {
+            "items": {
+              "$ref": "#/components/schemas/MemoryRecord"
+            },
+            "type": "array",
+            "title": "Records"
+          }
+        },
+        "type": "object",
+        "required": [
+          "total_records",
+          "records"
+        ],
+        "title": "MemoryExport",
+        "description": "Schema for exported memories."
+      },
+      "MemoryRecord": {
+        "properties": {
+          "id": {
+            "type": "string",
+            "title": "Id",
+            "description": "Stable UUID v4 identifier"
+          },
+          "memory_type": {
+            "$ref": "#/components/schemas/MemoryType",
+            "description": "episodic or semantic"
+          },
+          "category": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Category",
+            "description": "Semantic category or episodic event type"
+          },
+          "verification_status": {
+            "$ref": "#/components/schemas/VerificationStatus",
+            "description": "Provenance confidence rating",
+            "default": "unverified"
+          },
+          "confidence": {
+            "type": "number",
+            "maximum": 1.0,
+            "minimum": 0.0,
+            "title": "Confidence",
+            "description": "Confidence score for inferred facts",
+            "default": 1.0
+          },
+          "dedup_hash": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Dedup Hash",
+            "description": "Deterministic SHA-256 hash for deduplication"
+          },
+          "source_ref": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Source Ref",
+            "description": "Provenance reference (e.g. 'chat', 'tool', 'file')"
+          },
+          "schema_version": {
+            "type": "integer",
+            "title": "Schema Version",
+            "description": "Payload schema version",
+            "default": 1
+          },
+          "payload": {
+            "additionalProperties": true,
+            "type": "object",
+            "title": "Payload",
+            "description": "Decrypted payload content"
+          },
+          "created_at": {
+            "type": "string",
+            "title": "Created At",
+            "description": "UTC ISO-8601 creation timestamp"
+          },
+          "updated_at": {
+            "type": "string",
+            "title": "Updated At",
+            "description": "UTC ISO-8601 update timestamp"
+          },
+          "expires_at": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Expires At",
+            "description": "UTC ISO-8601 expiration timestamp, if any"
+          },
+          "is_deleted": {
+            "type": "boolean",
+            "title": "Is Deleted",
+            "description": "Tombstone flag",
+            "default": false
+          }
+        },
+        "type": "object",
+        "required": [
+          "id",
+          "memory_type",
+          "payload"
+        ],
+        "title": "MemoryRecord",
+        "description": "Decrypted in-memory representation of any memory record (episodic or semantic).\nPlaintext is only materialized in process memory and never written unencrypted to disk."
+      },
+      "MemoryType": {
+        "type": "string",
+        "enum": [
+          "episodic",
+          "semantic"
+        ],
+        "title": "MemoryType"
+      },
+      "MemoryUpdate": {
+        "properties": {
+          "object_value": {
+            "anyOf": [
+              {},
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Object Value",
+            "description": "New object value"
+          },
+          "verification_status": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/VerificationStatus"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "confidence": {
+            "anyOf": [
+              {
+                "type": "number",
+                "maximum": 1.0,
+                "minimum": 0.0
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Confidence"
+          },
+          "content": {
+            "anyOf": [
+              {
+                "additionalProperties": true,
+                "type": "object"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Content",
+            "description": "New content for episodic record"
+          }
+        },
+        "type": "object",
+        "title": "MemoryUpdate",
+        "description": "Input contract for editing an existing semantic or episodic memory."
+      },
+      "PermissionCheckRequest": {
+        "properties": {
+          "user_id": {
+            "type": "string",
+            "title": "User Id",
+            "description": "Subject identity or agent identity"
+          },
+          "action": {
+            "type": "string",
+            "title": "Action",
+            "description": "Requested action / tool name"
+          },
+          "resource": {
+            "type": "string",
+            "title": "Resource",
+            "description": "Target file, URL, process, or entity"
+          },
+          "risk_level": {
+            "$ref": "#/components/schemas/RiskLevel",
+            "default": "MEDIUM"
+          },
+          "approval_token": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Approval Token",
+            "description": "Human approval token if previously granted"
+          }
+        },
+        "type": "object",
+        "required": [
+          "user_id",
+          "action",
+          "resource"
+        ],
+        "title": "PermissionCheckRequest",
+        "description": "Authorization check request compatible with Member 1."
+      },
+      "PermissionDecision": {
+        "properties": {
+          "allowed": {
+            "type": "boolean",
+            "title": "Allowed",
+            "description": "True if action is permitted to execute"
+          },
+          "reason": {
+            "type": "string",
+            "title": "Reason",
+            "description": "Explanation of the authorization decision"
+          },
+          "approval_required": {
+            "type": "boolean",
+            "title": "Approval Required",
+            "description": "True if human confirmation is required"
+          },
+          "approval_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Approval Id",
+            "description": "Token identifier if approval is pending or granted"
+          }
+        },
+        "type": "object",
+        "required": [
+          "allowed",
+          "reason",
+          "approval_required"
+        ],
+        "title": "PermissionDecision",
+        "description": "Decision returned by the authorization gateway."
+      },
+      "RiskLevel": {
+        "type": "string",
+        "enum": [
+          "LOW",
+          "MEDIUM",
+          "HIGH"
+        ],
+        "title": "RiskLevel"
+      },
+      "SemanticCategory": {
+        "type": "string",
+        "enum": [
+          "fact",
+          "preference",
+          "project_context",
+          "heuristic"
+        ],
+        "title": "SemanticCategory"
+      },
+      "SemanticMemory": {
+        "properties": {
+          "id": {
+            "type": "string",
+            "title": "Id"
+          },
+          "category": {
+            "$ref": "#/components/schemas/SemanticCategory"
+          },
+          "subject": {
+            "type": "string",
+            "title": "Subject"
+          },
+          "predicate": {
+            "type": "string",
+            "title": "Predicate"
+          },
+          "object_value": {
+            "title": "Object Value"
+          },
+          "verification_status": {
+            "$ref": "#/components/schemas/VerificationStatus"
+          },
+          "confidence": {
+            "type": "number",
+            "title": "Confidence"
+          },
+          "dedup_hash": {
+            "type": "string",
+            "title": "Dedup Hash"
+          },
+          "source_ref": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Source Ref"
+          },
+          "created_at": {
+            "type": "string",
+            "title": "Created At"
+          },
+          "updated_at": {
+            "type": "string",
+            "title": "Updated At"
+          },
+          "expires_at": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Expires At"
+          },
+          "is_deleted": {
+            "type": "boolean",
+            "title": "Is Deleted",
+            "default": false
+          }
+        },
+        "type": "object",
+        "required": [
+          "id",
+          "category",
+          "subject",
+          "predicate",
+          "object_value",
+          "verification_status",
+          "confidence",
+          "dedup_hash",
+          "created_at",
+          "updated_at"
+        ],
+        "title": "SemanticMemory"
+      },
+      "SemanticMemoryCreate": {
+        "properties": {
+          "category": {
+            "$ref": "#/components/schemas/SemanticCategory",
+            "default": "fact"
+          },
+          "subject": {
+            "type": "string",
+            "title": "Subject",
+            "description": "Entity or topic the fact describes"
+          },
+          "predicate": {
+            "type": "string",
+            "title": "Predicate",
+            "description": "Relation or property name"
+          },
+          "object_value": {
+            "title": "Object Value",
+            "description": "Target value or structured data"
+          },
+          "verification_status": {
+            "$ref": "#/components/schemas/VerificationStatus",
+            "default": "user_provided"
+          },
+          "confidence": {
+            "type": "number",
+            "maximum": 1.0,
+            "minimum": 0.0,
+            "title": "Confidence",
+            "default": 1.0
+          },
+          "source_ref": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Source Ref",
+            "description": "Origin source reference"
+          },
+          "ttl_seconds": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Ttl Seconds",
+            "description": "Optional TTL in seconds"
+          }
+        },
+        "type": "object",
+        "required": [
+          "subject",
+          "predicate",
+          "object_value"
+        ],
+        "title": "SemanticMemoryCreate",
+        "description": "Input contract for storing a semantic memory."
+      },
+      "TaskCheckpoint": {
+        "properties": {
+          "task_id": {
+            "type": "string",
+            "title": "Task Id",
+            "description": "Unique task identifier"
+          },
+          "workflow_id": {
+            "type": "string",
+            "title": "Workflow Id",
+            "description": "Parent workflow or pipeline ID"
+          },
+          "status": {
+            "$ref": "#/components/schemas/TaskStatus",
+            "default": "PENDING"
+          },
+          "current_step": {
+            "type": "string",
+            "title": "Current Step",
+            "description": "Identifier of current step"
+          },
+          "completed_step_ids": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Completed Step Ids",
+            "description": "List of step IDs already committed"
+          },
+          "pending_step_ids": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Pending Step Ids",
+            "description": "List of step IDs yet to execute"
+          },
+          "approval_references": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Approval References",
+            "description": "Approved permission token IDs"
+          },
+          "retry_count": {
+            "type": "integer",
+            "minimum": 0.0,
+            "title": "Retry Count",
+            "default": 0
+          },
+          "state_data": {
+            "additionalProperties": true,
+            "type": "object",
+            "title": "State Data",
+            "description": "Arbitrary task execution variables"
+          },
+          "created_at": {
+            "type": "string",
+            "title": "Created At"
+          },
+          "updated_at": {
+            "type": "string",
+            "title": "Updated At"
+          }
+        },
+        "type": "object",
+        "required": [
+          "task_id",
+          "workflow_id",
+          "current_step"
+        ],
+        "title": "TaskCheckpoint",
+        "description": "Persistent task state checkpoint for crash recovery."
+      },
+      "TaskDAG": {
+        "properties": {
+          "task_id": {
+            "type": "string",
+            "title": "Task Id"
+          },
+          "goal": {
+            "type": "string",
+            "title": "Goal",
+            "description": "Original user prompt or task goal"
+          },
+          "model": {
+            "type": "string",
+            "title": "Model",
+            "description": "Target Ollama model",
+            "default": "gemma4:e2b"
+          },
+          "injected_context": {
+            "additionalProperties": true,
+            "type": "object",
+            "title": "Injected Context",
+            "description": "Retrieved verified facts and preferences"
+          },
+          "system_prompt": {
+            "type": "string",
+            "title": "System Prompt",
+            "description": "System prompt passed to LLM containing injected memory"
+          },
+          "steps": {
+            "items": {
+              "$ref": "#/components/schemas/DAGStep"
+            },
+            "type": "array",
+            "title": "Steps"
+          },
+          "status": {
+            "type": "string",
+            "title": "Status",
+            "description": "PENDING, RUNNING, PAUSED_APPROVAL, COMPLETED, FAILED",
+            "default": "PENDING"
+          },
+          "created_at": {
+            "type": "string",
+            "title": "Created At"
+          },
+          "updated_at": {
+            "type": "string",
+            "title": "Updated At"
+          }
+        },
+        "type": "object",
+        "required": [
+          "goal",
+          "system_prompt"
+        ],
+        "title": "TaskDAG",
+        "description": "Execution DAG produced by the TaskPlanner."
+      },
+      "TaskStatus": {
+        "type": "string",
+        "enum": [
+          "PENDING",
+          "RUNNING",
+          "PAUSED",
+          "COMPLETED",
+          "FAILED",
+          "REQUIRES_RECONCILIATION"
+        ],
+        "title": "TaskStatus"
+      },
+      "ValidationError": {
+        "properties": {
+          "loc": {
+            "items": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "integer"
+                }
+              ]
+            },
+            "type": "array",
+            "title": "Location"
+          },
+          "msg": {
+            "type": "string",
+            "title": "Message"
+          },
+          "type": {
+            "type": "string",
+            "title": "Error Type"
+          },
+          "input": {
+            "title": "Input"
+          },
+          "ctx": {
+            "type": "object",
+            "title": "Context"
+          }
+        },
+        "type": "object",
+        "required": [
+          "loc",
+          "msg",
+          "type"
+        ],
+        "title": "ValidationError"
+      },
+      "VerificationStatus": {
+        "type": "string",
+        "enum": [
+          "user_provided",
+          "verified",
+          "inferred",
+          "unverified"
+        ],
+        "title": "VerificationStatus"
+      }
+    }
+  }
+}
