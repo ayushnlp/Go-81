@@ -151,8 +151,8 @@ export default function CommandCenterPage() {
   ];
 
   return (
-    <div className="flex min-h-screen bg-[#FAF9F5] text-zinc-900">
-      {/* Persistent Application Shell Sidebar */}
+    <div className="flex flex-col h-screen bg-[#F7F9FC] text-[#152033] overflow-hidden">
+      {/* Top Navigation Bar */}
       <AppSidebar
         pendingApprovalsCount={
           messages.some(
@@ -164,23 +164,21 @@ export default function CommandCenterPage() {
         ollamaStatus={runtimeStatus?.ollamaStatus || 'connected'}
       />
 
-      {/* Main Content Area */}
-      <div className="flex-1 flex flex-col min-w-0">
-        {/* Offline / Staging Notification Banner */}
-        <OfflineBanner
-          isLive={isBackendOnline}
-          isChecking={isCheckingBackend}
-          onRetry={probeBackend}
-          backendUrl={api.getBaseUrl()}
-        />
+      {/* Offline / Staging Notification Banner */}
+      <OfflineBanner
+        isLive={isBackendOnline}
+        isChecking={isCheckingBackend}
+        onRetry={probeBackend}
+        backendUrl={api.getBaseUrl()}
+      />
 
-        <AppHeader
-          title="Command Center"
-          subtitle="Sovereign orchestrator running on local Ollama stack"
-          isBackendOnline={isBackendOnline}
-          isChecking={isCheckingBackend}
-          onRefreshBackend={probeBackend}
-        />
+      <AppHeader
+        title="Command Center"
+        subtitle="Sovereign orchestrator running on local Ollama stack"
+        isBackendOnline={isBackendOnline}
+        isChecking={isCheckingBackend}
+        onRefreshBackend={probeBackend}
+      />
 
         {/* Command Center Chat Canvas */}
         <main className="flex-1 flex flex-col max-w-5xl w-full mx-auto p-4 sm:p-6 overflow-hidden">
@@ -473,7 +471,6 @@ export default function CommandCenterPage() {
             </form>
           </div>
         </main>
-      </div>
 
       {/* Interactive Approval Modal */}
       <ApprovalModal

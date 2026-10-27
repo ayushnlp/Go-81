@@ -135,24 +135,23 @@ export default function SkillsPage() {
       : skills.filter((s) => s.category === selectedCategory);
 
   return (
-    <div className="flex min-h-screen bg-[#FAF9F5] text-zinc-900">
+    <div className="flex flex-col min-h-screen bg-[#F7F9FC] text-[#152033]">
       <AppSidebar />
 
-      <div className="flex-1 flex flex-col min-w-0">
-        <OfflineBanner
-          isLive={isBackendOnline}
-          isChecking={isCheckingBackend}
-          onRetry={probe}
-          backendUrl={api.getBaseUrl()}
-        />
+      <OfflineBanner
+        isLive={isBackendOnline}
+        isChecking={isCheckingBackend}
+        onRetry={probe}
+        backendUrl={api.getBaseUrl()}
+      />
 
-        <AppHeader
-          title="Skills Forge"
-          subtitle="Modular registered tools, parameters, and sandboxed execution boundaries (FR2)"
-          isBackendOnline={isBackendOnline}
-          isChecking={isCheckingBackend}
-          onRefreshBackend={probe}
-        />
+      <AppHeader
+        title="Skills Forge"
+        subtitle="Modular registered tools, parameters, and sandboxed execution boundaries (FR2)"
+        isBackendOnline={isBackendOnline}
+        isChecking={isCheckingBackend}
+        onRefreshBackend={probe}
+      />
 
         <main className="flex-1 max-w-5xl w-full mx-auto p-4 sm:p-6 space-y-6">
           {/* Top Control Bar */}
@@ -295,7 +294,6 @@ export default function SkillsPage() {
             })}
           </div>
         </main>
-      </div>
 
       {/* Parameter Schema Inspector Modal */}
       <Modal

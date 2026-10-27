@@ -9,8 +9,6 @@ import {
   Database,
   Wrench,
   ShieldCheck,
-  Cpu,
-  Lock,
   Radio,
 } from 'lucide-react';
 import { Badge } from '../ui/Badge';
@@ -19,8 +17,6 @@ interface NavItem {
   name: string;
   href: string;
   icon: React.ElementType;
-  badge?: string | number;
-  badgeVariant?: 'amber' | 'emerald' | 'zinc';
 }
 
 const navItems: NavItem[] = [
@@ -33,8 +29,6 @@ const navItems: NavItem[] = [
     name: 'Task Timeline',
     href: '/tasks',
     icon: Activity,
-    badge: '1 pending',
-    badgeVariant: 'amber',
   },
   {
     name: 'Memory Vault',
@@ -59,127 +53,149 @@ interface AppSidebarProps {
 }
 
 export const AppSidebar: React.FC<AppSidebarProps> = ({
-  pendingApprovalsCount = 1,
-  ollamaStatus = 'connected',
+  pendingApprovalsCount = 0,
+  ollamaStatus = 'disconnected',
 }) => {
   const pathname = usePathname();
 
+  const statusConfig = {
+    connected: {
+      label: 'Ollama connected',
+      dot: 'bg-emerald-500',
+      text: 'text-emerald-700',
+      background: 'bg-emerald-50',
+      border: 'border-emerald-200',
+    },
+    disconnected: {
+      label: 'Ollama offline',
+      dot: 'bg-red-500',
+      text: 'text-red-700',
+      background: 'bg-red-50',
+      border: 'border-red-200',
+    },
+    degraded: {
+      label: 'Ollama degraded',
+      dot: 'bg-amber-500',
+      text: 'text-amber-700',
+      background: 'bg-amber-50',
+      border: 'border-amber-200',
+    },
+  } as const;
+
+  const status =
+    (ollamaStatus && statusConfig[ollamaStatus as keyof typeof statusConfig]) ||
+    statusConfig.disconnected;
+
   return (
-    <aside className="w-64 shrink-0 bg-[#F4F3EE] border-r border-[#E5E3DC] flex flex-col justify-between h-screen sticky top-0 z-40 select-none text-zinc-900">
-      {/* Top Header & Brand */}
-      <div>
-        <div className="px-5 py-5 border-b border-[#E8E6DF] flex items-center justify-between">
-          <Link href="/" className="flex items-center gap-3 group">
-            <div className="w-8 h-8 rounded-lg bg-yellow-400 border border-yellow-500/40 flex items-center justify-center text-zinc-950 font-black text-sm shadow-xs group-hover:bg-yellow-300 transition-colors">
-              <span className="font-mono">81</span>
-            </div>
-            <div>
-              <div className="flex items-center gap-1.5">
-                <span className="font-bold text-sm tracking-tight text-zinc-950">
-                  GO 81
+    <header className="sticky top-0 z-50 w-full border-b border-[#E4E9F1] bg-white/95 text-[#152033] backdrop-blur-xl">
+      <div className="mx-auto flex w-full max-w-[1600px] flex-col gap-3 px-4 py-3 sm:px-6 md:flex-row md:items-center md:gap-5 lg:px-8">
+
+        {/* Brand */}
+        <div className="flex min-w-0 items-center justify-between gap-3 md:shrink-0">
+          <Link
+            href="/"
+            aria-label="Go 81 home"
+            className="group flex shrink-0 items-center gap-3 rounded-lg focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-[#3563F7]"
+          >
+            <span className="flex h-10 w-10 items-center justify-center rounded-xl bg-[#14213D] text-sm font-extrabold tracking-tight text-white shadow-sm transition-colors group-hover:bg-[#22375C]">
+              81
+            </span>
+
+            <span className="flex flex-col leading-tight">
+              <span className="flex items-center gap-2">
+                <span className="text-[15px] font-bold tracking-[-0.04em] text-[#14213D]">
+                  Go 81
                 </span>
-                <span className="text-[10px] font-mono uppercase bg-zinc-200/80 text-zinc-700 font-semibold px-1 py-0.2 rounded border border-zinc-300/60">
+
+                <span className="rounded-md border border-[#E4E9F1] bg-[#F7F9FC] px-1.5 py-0.5 text-[10px] font-medium text-[#667085]">
                   v0.9
                 </span>
-              </div>
-              <p className="text-[11px] text-zinc-500 font-mono">
-                Sovereign Agent Core
-              </p>
-            </div>
+              </span>
+
+              <span className="mt-1 text-[11px] font-medium tracking-wide text-[#8792A5]">
+                Personal AI Workspace
+              </span>
+            </span>
           </Link>
+
+          {/* Status for mobile */}
+          <span
+            role="status"
+            className={`inline-flex items-center gap-2 rounded-full border px-2.5 py-1.5 text-[11px] font-medium md:hidden ${status.background} ${status.border} ${status.text}`}
+          >
+            <span className={`h-1.5 w-1.5 rounded-full ${status.dot}`} />
+            {status.label}
+          </span>
         </div>
 
-        {/* Navigation Links */}
-        <nav className="p-3 space-y-1">
-          <div className="px-3 py-1.5 text-[10px] font-mono uppercase tracking-wider text-zinc-400 font-semibold">
-            Workspaces
-          </div>
+        {/* Main navigation */}
+        <nav
+          aria-label="Main navigation"
+          className="flex min-w-0 flex-1 items-center gap-1 overflow-x-auto pb-1 md:justify-center md:pb-0"
+          style={{ scrollbarWidth: 'none' }}
+        >
           {navItems.map((item) => {
             const isActive =
               item.href === '/'
                 ? pathname === '/'
-                : pathname.startsWith(item.href);
-            const Icon = item.icon;
+                : pathname === item.href ||
+                pathname.startsWith(`${item.href}/`);
 
-            const badgeValue =
-              item.href === '/tasks' && pendingApprovalsCount > 0
-                ? `${pendingApprovalsCount} gate`
-                : item.badge;
+            const Icon = item.icon;
+            const isTaskRoute = item.href === '/tasks';
 
             return (
               <Link
                 key={item.href}
                 href={item.href}
-                className={`flex items-center justify-between px-3 py-2 rounded-lg text-xs transition-all ${
+                aria-current={isActive ? 'page' : undefined}
+                className={[
+                  'relative inline-flex min-h-10 shrink-0 items-center gap-2 whitespace-nowrap rounded-xl px-3 py-2 text-[12px] font-medium transition-colors duration-150',
+                  'focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#3563F7]',
                   isActive
-                    ? 'bg-zinc-950 text-white shadow-xs font-semibold'
-                    : 'text-zinc-600 hover:text-zinc-950 hover:bg-zinc-200/60 font-medium'
-                }`}
+                    ? 'bg-[#EAF0FF] text-[#14213D]'
+                    : 'text-[#667085] hover:bg-[#F1F5FB] hover:text-[#14213D]',
+                ].join(' ')}
               >
-                <div className="flex items-center gap-2.5">
-                  <Icon
-                    className={`w-4 h-4 shrink-0 ${
-                      isActive ? 'text-yellow-400' : 'text-zinc-500'
+                <Icon
+                  aria-hidden="true"
+                  className={`h-4 w-4 shrink-0 ${isActive ? 'text-[#3563F7]' : 'text-[#8792A5]'
                     }`}
-                  />
-                  <span>{item.name}</span>
-                </div>
-                {badgeValue && (
+                  strokeWidth={isActive ? 2.2 : 1.8}
+                />
+
+                <span>{item.name}</span>
+
+                {isTaskRoute && pendingApprovalsCount > 0 && (
                   <Badge
-                    variant={item.badgeVariant || 'zinc'}
-                    className={`text-[10px] py-0 px-1.5 ${
-                      isActive ? 'bg-zinc-800 text-yellow-300 border-zinc-700' : ''
-                    }`}
+                    variant="amber"
+                    className="ml-0.5 border border-[#F4D8A5] bg-[#FFF5E5] px-1.5 py-0.5 text-[10px] font-semibold text-[#92540A]"
                   >
-                    {badgeValue}
+                    {pendingApprovalsCount}
                   </Badge>
                 )}
               </Link>
             );
           })}
         </nav>
-      </div>
 
-      {/* Sovereign Runtime Status Card */}
-      <div className="p-3.5 m-3 rounded-xl bg-white border border-[#E5E3DC] shadow-xs text-xs">
-        <div className="flex items-center justify-between mb-2">
-          <span className="text-[11px] font-mono text-zinc-700 uppercase tracking-wider font-semibold flex items-center gap-1.5">
-            <Radio className="w-3 h-3 text-emerald-600 animate-pulse" />
-            GO 81 LOCAL AGENT
+        {/* Runtime status for desktop */}
+        <div className="hidden shrink-0 items-center gap-2 md:flex">
+          <span
+            role="status"
+            className={`inline-flex items-center gap-2 rounded-full border px-3 py-2 text-[11px] font-medium ${status.background} ${status.border} ${status.text}`}
+          >
+            <Radio
+              aria-hidden="true"
+              className="h-3.5 w-3.5"
+            />
+
+            <span className={`h-1.5 w-1.5 rounded-full ${status.dot}`} />
+
+            {status.label}
           </span>
-          <span className="text-[10px] font-mono text-emerald-800 bg-emerald-50 border border-emerald-200 px-1.5 py-0.5 rounded font-bold">
-            SOVEREIGN
-          </span>
-        </div>
-
-        <div className="space-y-1.5 text-[11px] text-zinc-600">
-          <div className="flex items-center justify-between">
-            <span className="flex items-center gap-1">
-              <Cpu className="w-3 h-3 text-zinc-400" /> Ollama Host
-            </span>
-            <span className="font-mono text-zinc-900 font-medium">
-              {ollamaStatus === 'connected' ? '127.0.0.1' : 'Offline'}
-            </span>
-          </div>
-
-          <div className="flex items-center justify-between">
-            <span className="flex items-center gap-1">
-              <Lock className="w-3 h-3 text-zinc-400" /> Sealed Memory
-            </span>
-            <span className="font-mono text-emerald-700 font-semibold">AES-256</span>
-          </div>
-
-          <div className="flex items-center justify-between">
-            <span>Outbound Leak</span>
-            <span className="font-mono text-emerald-700 font-semibold">0 KB (Local)</span>
-          </div>
-        </div>
-
-        <div className="mt-2.5 pt-2 border-t border-[#EAE8E2] flex items-center justify-between text-[10px] text-zinc-500 font-mono">
-          <span>llama3.2:3b</span>
-          <span>&lt;30% CPU</span>
         </div>
       </div>
-    </aside>
+    </header>
   );
 };

@@ -82,24 +82,23 @@ export default function SettingsPage() {
   };
 
   return (
-    <div className="flex min-h-screen bg-[#FAF9F5] text-zinc-900">
+    <div className="flex flex-col min-h-screen bg-[#F7F9FC] text-[#152033]">
       <AppSidebar />
 
-      <div className="flex-1 flex flex-col min-w-0">
-        <OfflineBanner
-          isLive={isBackendOnline}
-          isChecking={isCheckingBackend}
-          onRetry={probe}
-          backendUrl={api.getBaseUrl()}
-        />
+      <OfflineBanner
+        isLive={isBackendOnline}
+        isChecking={isCheckingBackend}
+        onRetry={probe}
+        backendUrl={api.getBaseUrl()}
+      />
 
-        <AppHeader
-          title="Privacy &amp; Sovereign Control"
-          subtitle="Shield-wall guarantees, encrypted memory at rest, and background triggers (FR4 / NFR1)"
-          isBackendOnline={isBackendOnline}
-          isChecking={isCheckingBackend}
-          onRefreshBackend={probe}
-        />
+      <AppHeader
+        title="Privacy &amp; Sovereign Control"
+        subtitle="Shield-wall guarantees, encrypted memory at rest, and background triggers (FR4 / NFR1)"
+        isBackendOnline={isBackendOnline}
+        isChecking={isCheckingBackend}
+        onRefreshBackend={probe}
+      />
 
         <main className="flex-1 max-w-5xl w-full mx-auto p-4 sm:p-6 space-y-6">
           {/* Sovereign Guarantee Header Banner */}
@@ -423,7 +422,6 @@ export default function SettingsPage() {
             </div>
           </form>
         </main>
-      </div>
     </div>
   );
 }
