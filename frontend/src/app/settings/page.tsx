@@ -82,7 +82,7 @@ export default function SettingsPage() {
   };
 
   return (
-    <div className="flex min-h-screen bg-[#090b0e] text-zinc-100">
+    <div className="flex min-h-screen bg-[#FAF9F5] text-zinc-900">
       <AppSidebar />
 
       <div className="flex-1 flex flex-col min-w-0">
@@ -103,31 +103,31 @@ export default function SettingsPage() {
 
         <main className="flex-1 max-w-5xl w-full mx-auto p-4 sm:p-6 space-y-6">
           {/* Sovereign Guarantee Header Banner */}
-          <div className="p-5 rounded-xl bg-[#0f141d] border border-emerald-500/30 flex flex-wrap items-center justify-between gap-4">
+          <div className="p-5 rounded-xl bg-emerald-50/70 border border-emerald-200 flex flex-wrap items-center justify-between gap-4">
             <div className="flex items-start gap-3.5">
-              <div className="p-2.5 rounded-lg bg-emerald-950/80 border border-emerald-500/50 text-emerald-400">
+              <div className="p-2.5 rounded-lg bg-emerald-100 text-emerald-800 border border-emerald-300">
                 <ShieldCheck className="w-6 h-6" />
               </div>
               <div>
                 <div className="flex items-center gap-2">
-                  <h2 className="text-base font-semibold text-zinc-100">
+                  <h2 className="text-base font-semibold text-emerald-950">
                     Sovereignty Shield-Wall Engaged
                   </h2>
                   <Badge variant="emerald" dot>
                     Zero Leakage Guaranteed
                   </Badge>
                 </div>
-                <p className="mt-1 text-xs text-zinc-300 max-w-2xl leading-relaxed">
-                  All prompts, embeddings, and episodic runes execute solely on your Apple Silicon hardware via local Ollama. Zero raw prompt data or vector indices ever leave your machine.
+                <p className="mt-1 text-xs text-emerald-900/80 max-w-2xl leading-relaxed">
+                  All prompts, embeddings, and episodic records execute solely on your local host hardware via local Ollama. Zero raw prompt data or vector indices ever leave your machine.
                 </p>
               </div>
             </div>
 
-            <div className="font-mono text-xs text-right bg-zinc-950/80 px-3 py-2 rounded-lg border border-zinc-800">
+            <div className="font-mono text-xs text-right bg-white px-3 py-2 rounded-lg border border-emerald-200 shadow-2xs">
               <span className="text-zinc-500 block text-[10px] uppercase">
                 Outbound Telemetry
               </span>
-              <span className="text-emerald-400 font-bold text-sm">
+              <span className="text-emerald-700 font-bold text-sm">
                 0 KB Outbound
               </span>
             </div>
@@ -138,7 +138,7 @@ export default function SettingsPage() {
             <Card>
               <CardHeader>
                 <div className="flex items-center gap-2">
-                  <Cpu className="w-4 h-4 text-emerald-400" />
+                  <Cpu className="w-4 h-4 text-emerald-600" />
                   <CardTitle>Local Ollama Inference Engine (NFR1.3)</CardTitle>
                 </div>
                 <Badge variant="emerald" dot>
@@ -149,7 +149,7 @@ export default function SettingsPage() {
               <CardContent className="space-y-4 text-xs">
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                   <div>
-                    <label className="font-medium text-zinc-300 block mb-1">
+                    <label className="font-semibold text-zinc-700 block mb-1">
                       Ollama Endpoint Address:
                     </label>
                     <input
@@ -158,7 +158,7 @@ export default function SettingsPage() {
                       onChange={(e) =>
                         setSettings({ ...settings, ollamaHost: e.target.value })
                       }
-                      className="w-full font-mono bg-zinc-900 border border-zinc-800 rounded-lg p-2.5 text-zinc-200 focus:outline-none focus:border-emerald-500"
+                      className="w-full font-mono bg-white border border-[#E5E3DC] rounded-lg p-2.5 text-zinc-900 placeholder-zinc-400 focus:outline-none focus:border-zinc-900 shadow-2xs"
                     />
                     <span className="text-[11px] text-zinc-500 mt-1 block">
                       Local loopback socket. Browser never calls this directly; routed via FastAPI.
@@ -166,7 +166,7 @@ export default function SettingsPage() {
                   </div>
 
                   <div>
-                    <label className="font-medium text-zinc-300 block mb-1">
+                    <label className="font-semibold text-zinc-700 block mb-1">
                       Active Model Tag:
                     </label>
                     <select
@@ -174,10 +174,10 @@ export default function SettingsPage() {
                       onChange={(e) =>
                         setSettings({ ...settings, selectedModel: e.target.value })
                       }
-                      className="w-full font-mono bg-zinc-900 border border-zinc-800 rounded-lg p-2.5 text-zinc-200 focus:outline-none focus:border-emerald-500"
+                      className="w-full font-mono bg-white border border-[#E5E3DC] rounded-lg p-2.5 text-zinc-900 focus:outline-none focus:border-zinc-900 shadow-2xs"
                     >
                       <option value="llama3.2:3b-instruct-q8_0">
-                        llama3.2:3b-instruct-q8_0 (Recommended for M4)
+                        llama3.2:3b-instruct-q8_0 (Recommended Local 3B)
                       </option>
                       <option value="mistral:7b-instruct-v0.3-q4_K_M">
                         mistral:7b-instruct-v0.3-q4_K_M
@@ -197,31 +197,31 @@ export default function SettingsPage() {
             <Card>
               <CardHeader>
                 <div className="flex items-center gap-2">
-                  <Database className="w-4 h-4 text-sky-400" />
-                  <CardTitle>Encrypted Memory &amp; Norns Forgetting (FR1.3 / NFR1.2)</CardTitle>
+                  <Database className="w-4 h-4 text-sky-600" />
+                  <CardTitle>Encrypted Memory &amp; Memory Forgetting (FR1.3 / NFR1.2)</CardTitle>
                 </div>
                 <span className="text-xs font-mono text-zinc-500">AES-256-GCM</span>
               </CardHeader>
 
               <CardContent className="space-y-4 text-xs">
-                <div className="flex items-center justify-between p-3 rounded-lg bg-zinc-950/60 border border-zinc-850">
+                <div className="flex items-center justify-between p-3 rounded-lg bg-[#FAF9F5] border border-[#E5E3DC]">
                   <div>
-                    <span className="font-medium text-zinc-200 block">
+                    <span className="font-semibold text-zinc-900 block">
                       Cryptographic Memory at Rest Encryption
                     </span>
-                    <span className="text-[11px] text-zinc-400">
-                      All episodic saga logs and Mimir vectors are sealed with a user-held key.
+                    <span className="text-[11px] text-zinc-600">
+                      All episodic logs and semantic vectors are sealed with an AES-256 user key.
                     </span>
                   </div>
                   <Badge variant="emerald">Sealed</Badge>
                 </div>
 
-                <div className="flex items-center justify-between p-3 rounded-lg bg-zinc-950/60 border border-zinc-850">
+                <div className="flex items-center justify-between p-3 rounded-lg bg-[#FAF9F5] border border-[#E5E3DC]">
                   <div>
-                    <span className="font-medium text-zinc-200 block">
+                    <span className="font-semibold text-zinc-900 block">
                       Autonomous Memory Decay &amp; Forgetting (FR1.3)
                     </span>
-                    <span className="text-[11px] text-zinc-400">
+                    <span className="text-[11px] text-zinc-600">
                       Automatically consolidate short-term memories and prune obsolete records after threshold.
                     </span>
                   </div>
@@ -235,7 +235,7 @@ export default function SettingsPage() {
                       })
                     }
                     className={`relative inline-flex h-5 w-9 shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out ${
-                      settings.memoryAutoForgetting ? 'bg-emerald-600' : 'bg-zinc-800'
+                      settings.memoryAutoForgetting ? 'bg-zinc-950' : 'bg-zinc-300'
                     }`}
                   >
                     <span
@@ -248,7 +248,7 @@ export default function SettingsPage() {
 
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 pt-1">
                   <div>
-                    <label className="font-medium text-zinc-300 block mb-1">
+                    <label className="font-semibold text-zinc-700 block mb-1">
                       Ephemeral Log Prune Threshold (Days):
                     </label>
                     <input
@@ -260,12 +260,12 @@ export default function SettingsPage() {
                           forgettingThresholdDays: parseInt(e.target.value) || 14,
                         })
                       }
-                      className="w-full font-mono bg-zinc-900 border border-zinc-800 rounded-lg p-2 text-zinc-200"
+                      className="w-full font-mono bg-white border border-[#E5E3DC] rounded-lg p-2 text-zinc-900 shadow-2xs"
                     />
                   </div>
 
                   <div>
-                    <label className="font-medium text-zinc-300 block mb-1">
+                    <label className="font-semibold text-zinc-700 block mb-1">
                       Resource Footprint Cap (NFR2.2 Baseline %):
                     </label>
                     <input
@@ -279,7 +279,7 @@ export default function SettingsPage() {
                           maxCpuUsagePercent: parseInt(e.target.value) || 30,
                         })
                       }
-                      className="w-full font-mono bg-zinc-900 border border-zinc-800 rounded-lg p-2 text-zinc-200"
+                      className="w-full font-mono bg-white border border-[#E5E3DC] rounded-lg p-2 text-zinc-900 shadow-2xs"
                     />
                     <span className="text-[11px] text-zinc-500 mt-0.5 block">
                       Strict invariant: Will not exceed 30% of host CPU/GPU baseline.
@@ -293,16 +293,16 @@ export default function SettingsPage() {
             <Card>
               <CardHeader>
                 <div className="flex items-center gap-2">
-                  <Radio className="w-4 h-4 text-emerald-400" />
-                  <CardTitle>Always-On Background Sentinels (FR4.1)</CardTitle>
+                  <Radio className="w-4 h-4 text-emerald-600" />
+                  <CardTitle>Always-On Background Agent Daemons (FR4.1)</CardTitle>
                 </div>
                 <Badge variant="emerald" dot>
-                  Heimdall Watch Active
+                  Monitor Active
                 </Badge>
               </CardHeader>
 
               <CardContent className="space-y-3">
-                <p className="text-xs text-zinc-400">
+                <p className="text-xs text-zinc-600">
                   Continuous monitors that trigger multi-step workflows autonomously without manual user prompting:
                 </p>
 
@@ -310,18 +310,18 @@ export default function SettingsPage() {
                   {sentinels.map((sentinel) => (
                     <div
                       key={sentinel.id}
-                      className="p-3 rounded-lg bg-zinc-950/70 border border-zinc-850 flex items-center justify-between text-xs"
+                      className="p-3 rounded-lg bg-[#FAF9F5] border border-[#E5E3DC] flex items-center justify-between text-xs"
                     >
                       <div className="space-y-0.5">
                         <div className="flex items-center gap-2">
-                          <span className="font-medium text-zinc-200">
+                          <span className="font-semibold text-zinc-900">
                             {sentinel.name}
                           </span>
-                          <span className="font-mono text-[10px] text-zinc-500 uppercase bg-zinc-900 px-1.5 py-0.2 rounded border border-zinc-800">
+                          <span className="font-mono text-[10px] text-zinc-600 uppercase bg-white px-1.5 py-0.5 rounded border border-[#E5E3DC]">
                             {sentinel.type}
                           </span>
                         </div>
-                        <p className="text-[11px] text-zinc-400">
+                        <p className="text-[11px] text-zinc-600">
                           {sentinel.actionSummary} ({sentinel.patternOrSchedule})
                         </p>
                       </div>
@@ -330,7 +330,7 @@ export default function SettingsPage() {
                         type="button"
                         onClick={() => handleToggleSentinel(sentinel.id)}
                         className={`relative inline-flex h-5 w-9 shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out ${
-                          sentinel.isActive ? 'bg-emerald-600' : 'bg-zinc-800'
+                          sentinel.isActive ? 'bg-zinc-950' : 'bg-zinc-300'
                         }`}
                       >
                         <span
@@ -349,7 +349,7 @@ export default function SettingsPage() {
             <Card>
               <CardHeader>
                 <div className="flex items-center gap-2">
-                  <Server className="w-4 h-4 text-zinc-400" />
+                  <Server className="w-4 h-4 text-zinc-600" />
                   <CardTitle>FastAPI Backend Configuration</CardTitle>
                 </div>
                 <Badge variant={isBackendOnline ? 'emerald' : 'amber'} dot>
@@ -359,7 +359,7 @@ export default function SettingsPage() {
 
               <CardContent className="space-y-4 text-xs">
                 <div>
-                  <label className="font-medium text-zinc-300 block mb-1">
+                  <label className="font-semibold text-zinc-700 block mb-1">
                     FastAPI Endpoint URL:
                   </label>
                   <div className="flex gap-2">
@@ -370,7 +370,7 @@ export default function SettingsPage() {
                         setSettings({ ...settings, fastApiBackendUrl: e.target.value });
                         api.setBaseUrl(e.target.value);
                       }}
-                      className="flex-1 font-mono bg-zinc-900 border border-zinc-800 rounded-lg p-2.5 text-zinc-200"
+                      className="flex-1 font-mono bg-white border border-[#E5E3DC] rounded-lg p-2.5 text-zinc-900 shadow-2xs"
                     />
                     <Button
                       type="button"
@@ -385,12 +385,12 @@ export default function SettingsPage() {
                   </div>
                 </div>
 
-                <div className="flex items-center justify-between p-3 rounded-lg bg-zinc-950/60 border border-zinc-850">
+                <div className="flex items-center justify-between p-3 rounded-lg bg-[#FAF9F5] border border-[#E5E3DC]">
                   <div>
-                    <span className="font-medium text-zinc-200 block">
+                    <span className="font-semibold text-zinc-900 block">
                       Strict Role-Based Approval Enforced (FR4.3)
                     </span>
-                    <span className="text-[11px] text-zinc-400">
+                    <span className="text-[11px] text-zinc-600">
                       High-risk skills (file modifications, bash commands, external notifications) unconditionally mandate just-in-time human consent.
                     </span>
                   </div>
@@ -402,7 +402,7 @@ export default function SettingsPage() {
             {/* Save Button */}
             <div className="flex items-center justify-between pt-2">
               {isSaved ? (
-                <span className="text-xs font-mono text-emerald-400 flex items-center gap-1.5 animate-in fade-in">
+                <span className="text-xs font-mono text-emerald-700 flex items-center gap-1.5 animate-in fade-in">
                   <CheckCircle2 className="w-4 h-4" /> Sovereign parameters saved locally.
                 </span>
               ) : (

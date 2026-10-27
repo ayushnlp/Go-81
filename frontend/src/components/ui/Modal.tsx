@@ -39,28 +39,28 @@ export const Modal: React.FC<ModalProps> = ({
   if (!isOpen) return null;
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/75 backdrop-blur-xs">
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-zinc-950/40 backdrop-blur-xs">
       <div
-        className={`w-full ${maxWidthStyles[maxWidth]} rounded-xl bg-[#12151D] border border-zinc-800 shadow-2xl overflow-hidden animate-in fade-in zoom-in-95 duration-150`}
+        className={`w-full ${maxWidthStyles[maxWidth]} rounded-2xl bg-white border border-[#E5E3DC] shadow-2xl overflow-hidden animate-in fade-in zoom-in-95 duration-150 text-zinc-900`}
         role="dialog"
         aria-modal="true"
       >
-        <div className="flex items-start justify-between px-6 py-4 border-b border-zinc-800/80 bg-zinc-900/30">
+        <div className="flex items-start justify-between px-6 py-4 border-b border-[#EAE8E2] bg-[#FAF9F5]">
           <div>
-            <h2 className="text-base font-semibold text-zinc-100">{title}</h2>
+            <h2 className="text-base font-bold text-zinc-950">{title}</h2>
             {description && (
-              <p className="mt-0.5 text-xs text-zinc-400">{description}</p>
+              <p className="mt-0.5 text-xs text-zinc-600">{description}</p>
             )}
           </div>
           <button
             onClick={onClose}
-            className="p-1 text-zinc-400 hover:text-zinc-100 rounded-md hover:bg-zinc-800/60 cursor-pointer"
+            className="p-1.5 text-zinc-500 hover:text-zinc-900 rounded-lg hover:bg-zinc-100 cursor-pointer transition-colors"
             aria-label="Close dialog"
           >
             <X className="w-4 h-4" />
           </button>
         </div>
-        <div className="p-6">{children}</div>
+        <div className="p-6 text-zinc-800">{children}</div>
       </div>
     </div>
   );

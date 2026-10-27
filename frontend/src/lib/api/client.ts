@@ -1,5 +1,5 @@
 /**
- * Ragnarok Typed API Client Boundary
+ * Go 81 Typed API Client Boundary
  * 
  * Provides an honest transport layer to the Python FastAPI backend.
  * Features:
@@ -43,7 +43,7 @@ export interface ApiResponse<T> {
 const DEFAULT_BACKEND_URL =
   process.env.NEXT_PUBLIC_API_URL || 'http://127.0.0.1:8000';
 
-class RagnarokApiClient {
+class Go81ApiClient {
   private baseUrl: string;
 
   constructor() {
@@ -377,5 +377,5 @@ class RagnarokApiClient {
   }
 }
 
-export const api = new RagnarokApiClient();
+export const api = new Go81ApiClient();
 export { DEMO_CHAT_MESSAGES };

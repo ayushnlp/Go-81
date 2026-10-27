@@ -148,7 +148,7 @@ export default function TasksPage() {
         {
           id: `step-${Date.now()}-3`,
           stepNumber: 3,
-          title: 'Verify Results & Inscribe Saga Record into Mimir Memory',
+          title: 'Verify Results & Inscribe Record into Memory Storage',
           skillName: 'memory.record_saga',
           status: 'pending',
           parameters: { autoConsolidate: true },
@@ -170,7 +170,7 @@ export default function TasksPage() {
   const pendingApprovalsCount = approvals.filter((a) => a.status === 'pending').length;
 
   return (
-    <div className="flex min-h-screen bg-[#090b0e] text-zinc-100">
+    <div className="flex min-h-screen bg-[#FAF9F5] text-zinc-900">
       <AppSidebar pendingApprovalsCount={pendingApprovalsCount} />
 
       <div className="flex-1 flex flex-col min-w-0">
@@ -193,7 +193,7 @@ export default function TasksPage() {
           {/* Top Control Bar */}
           <div className="flex flex-wrap items-center justify-between gap-4">
             {/* Filter Tabs */}
-            <div className="flex items-center gap-1 bg-[#101319] p-1 rounded-lg border border-zinc-800/80 text-xs font-mono">
+            <div className="flex items-center gap-1 bg-white p-1 rounded-lg border border-[#E5E3DC] shadow-2xs text-xs font-mono">
               <span className="text-zinc-500 px-2 flex items-center gap-1">
                 <Filter className="w-3 h-3" /> State:
               </span>
@@ -204,8 +204,8 @@ export default function TasksPage() {
                     onClick={() => setStatusFilter(filter)}
                     className={`px-2.5 py-1 rounded cursor-pointer capitalize ${
                       statusFilter === filter
-                        ? 'bg-zinc-800 text-zinc-100 font-semibold'
-                        : 'text-zinc-400 hover:text-zinc-200'
+                        ? 'bg-zinc-950 text-white font-semibold'
+                        : 'text-zinc-600 hover:text-zinc-900'
                     }`}
                   >
                     {filter === 'awaiting_approval'
@@ -229,16 +229,16 @@ export default function TasksPage() {
 
           {/* Pending Approval Gates Alert Banner */}
           {pendingApprovalsCount > 0 && (
-            <div className="p-4 rounded-xl bg-amber-950/20 border border-amber-800/50 flex flex-wrap items-center justify-between gap-3 text-xs">
+            <div className="p-4 rounded-xl bg-amber-50 border border-amber-200 flex flex-wrap items-center justify-between gap-3 text-xs">
               <div className="flex items-center gap-3">
-                <div className="p-2 rounded-lg bg-amber-900/40 text-amber-300 border border-amber-700/50">
+                <div className="p-2 rounded-lg bg-amber-100 text-amber-800 border border-amber-300">
                   <ShieldAlert className="w-5 h-5" />
                 </div>
                 <div>
-                  <h3 className="font-semibold text-amber-100 text-sm">
+                  <h3 className="font-semibold text-amber-950 text-sm">
                     {pendingApprovalsCount} Action Requires Gatekeeper Approval (FR4.3)
                   </h3>
-                  <p className="text-amber-300/80 mt-0.5">
+                  <p className="text-amber-800 mt-0.5">
                     A task step attempted to perform a sensitive operation (file writes or shell execution).
                   </p>
                 </div>
@@ -251,7 +251,7 @@ export default function TasksPage() {
                   const pendingReq = approvals.find((a) => a.status === 'pending');
                   if (pendingReq) setActiveApproval(pendingReq);
                 }}
-                className="border-amber-700/60 text-amber-200 hover:bg-amber-900/40 font-mono text-xs"
+                className="border-amber-300 text-amber-900 hover:bg-amber-100 font-mono text-xs"
               >
                 Inspect &amp; Authorize
               </Button>
@@ -261,8 +261,8 @@ export default function TasksPage() {
           {/* Task Timeline List */}
           <div className="space-y-4">
             {filteredTasks.length === 0 ? (
-              <div className="p-12 text-center rounded-xl bg-[#101319] border border-zinc-800 text-zinc-500 space-y-2">
-                <Activity className="w-8 h-8 mx-auto text-zinc-600" />
+              <div className="p-12 text-center rounded-xl bg-white border border-[#E5E3DC] text-zinc-500 space-y-2">
+                <Activity className="w-8 h-8 mx-auto text-zinc-400" />
                 <p className="text-sm">No tasks found matching current filter.</p>
               </div>
             ) : (
@@ -287,7 +287,7 @@ export default function TasksPage() {
       >
         <form onSubmit={handleCreateTask} className="space-y-4">
           <div>
-            <label className="text-xs font-medium text-zinc-300 block mb-1">
+            <label className="text-xs font-semibold text-zinc-700 block mb-1">
               High-Level Goal / Ambiguous User Objective:
             </label>
             <textarea
@@ -296,12 +296,12 @@ export default function TasksPage() {
               placeholder="e.g. Audit repository, run type checks, and prepare PR submission diff..."
               rows={3}
               required
-              className="w-full text-xs rounded-lg bg-zinc-900 border border-zinc-700/80 p-2.5 text-zinc-200 placeholder-zinc-500 focus:border-emerald-500 focus:ring-1 focus:ring-emerald-500"
+              className="w-full text-xs rounded-lg bg-white border border-zinc-300 p-2.5 text-zinc-900 placeholder-zinc-400 focus:border-zinc-900 focus:ring-1 focus:ring-zinc-900"
             />
           </div>
 
           <div>
-            <label className="text-xs font-medium text-zinc-300 block mb-1">
+            <label className="text-xs font-semibold text-zinc-700 block mb-1">
               Execution Priority:
             </label>
             <div className="flex gap-2">
@@ -312,8 +312,8 @@ export default function TasksPage() {
                   onClick={() => setNewPriority(pri)}
                   className={`flex-1 py-1.5 px-3 rounded-lg text-xs font-mono capitalize border cursor-pointer ${
                     newPriority === pri
-                      ? 'bg-zinc-800 border-emerald-500/50 text-emerald-400 font-semibold'
-                      : 'bg-zinc-900 border-zinc-800 text-zinc-400 hover:text-zinc-200'
+                      ? 'bg-zinc-950 border-zinc-950 text-white font-semibold'
+                      : 'bg-white border-zinc-300 text-zinc-700 hover:bg-zinc-100'
                   }`}
                 >
                   {pri}
@@ -322,7 +322,7 @@ export default function TasksPage() {
             </div>
           </div>
 
-          <div className="pt-2 border-t border-zinc-800 flex items-center justify-end gap-2">
+          <div className="pt-2 border-t border-zinc-200 flex items-center justify-end gap-2">
             <Button
               type="button"
               variant="ghost"

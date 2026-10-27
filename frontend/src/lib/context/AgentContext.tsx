@@ -92,18 +92,17 @@ export const AgentProvider: React.FC<{ children: ReactNode }> = ({ children }) =
   // Initialize Mode and Theme from LocalStorage / System
   useEffect(() => {
     try {
-      const savedMode = localStorage.getItem('ragnarok_mode') as AudienceMode | null;
+      const savedMode = localStorage.getItem('go81_mode') as AudienceMode | null;
       if (savedMode === 'user' || savedMode === 'developer') {
         setModeState(savedMode);
       }
 
-      const savedTheme = localStorage.getItem('ragnarok_theme') as AppearancePreset | null;
+      const savedTheme = localStorage.getItem('go81_theme') as AppearancePreset | null;
       if (savedTheme && ['light', 'dark', 'oled-light', 'oled-dark'].includes(savedTheme)) {
         setPresetState(savedTheme);
         document.documentElement.setAttribute('data-theme', savedTheme);
       } else {
-        const prefersDark = window.matchMedia('(prefers-color-scheme: dark)').matches;
-        const initialTheme: AppearancePreset = prefersDark ? 'dark' : 'light';
+        const initialTheme: AppearancePreset = 'light';
         setPresetState(initialTheme);
         document.documentElement.setAttribute('data-theme', initialTheme);
       }
@@ -115,7 +114,7 @@ export const AgentProvider: React.FC<{ children: ReactNode }> = ({ children }) =
   const setMode = (newMode: AudienceMode) => {
     setModeState(newMode);
     try {
-      localStorage.setItem('ragnarok_mode', newMode);
+      localStorage.setItem('go81_mode', newMode);
     } catch {
       // ignore
     }
@@ -125,7 +124,7 @@ export const AgentProvider: React.FC<{ children: ReactNode }> = ({ children }) =
     setPresetState(newPreset);
     document.documentElement.setAttribute('data-theme', newPreset);
     try {
-      localStorage.setItem('ragnarok_theme', newPreset);
+      localStorage.setItem('go81_theme', newPreset);
     } catch {
       // ignore
     }

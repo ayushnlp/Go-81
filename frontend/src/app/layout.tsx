@@ -1,20 +1,33 @@
 import type { Metadata } from 'next';
+import { Inter } from 'next/font/google';
 import './globals.css';
 
+const inter = Inter({
+  subsets: ['latin'],
+  display: 'swap',
+  variable: '--font-go81-sans',
+});
+
 export const metadata: Metadata = {
-  title: 'Go 81 | Sovereign AI Command Center',
+  title: {
+    default: 'Go 81 | Sovereign AI Command Center',
+    template: '%s | Go 81',
+  },
   description:
-    'A sovereign, always-on personal AI agent running on local Ollama stack with persistent memory, multi-step task execution, registered skills, and privacy controls.',
+    'Go 81 is a local-first AI workspace powered by Ollama, with persistent memory, intelligent workflows, and privacy-focused controls.',
+  applicationName: 'Go 81',
 };
 
 export default function RootLayout({
   children,
-}: {
+}: Readonly<{
   children: React.ReactNode;
-}) {
+}>) {
   return (
-    <html lang="en" className="dark">
-      <body className="bg-[#090b0e] text-zinc-100 antialiased min-h-screen">
+    <html lang="en" data-theme="light">
+      <body
+        className={`${inter.className} ${inter.variable} min-h-screen bg-[#F7F9FC] text-[#152033] antialiased selection:bg-[#DCE6FF] selection:text-[#14213D]`}
+      >
         {children}
       </body>
     </html>

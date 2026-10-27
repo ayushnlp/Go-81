@@ -1,8 +1,35 @@
 @import "tailwindcss";
 
 @layer base {
-  /* 1. DARK PRESET (Default) - Deep Charcoal */
+  /* 1. GO 81 PREMIUM LIGHT (Default) - Warm Gallery White & Bold Typography */
   :root,
+  [data-theme="light"] {
+    --bg-canvas: #faf9f5;
+    --bg-surface: #ffffff;
+    --bg-elevated: #f4f3ee;
+    --bg-subtle: #eceae3;
+    --border-subtle: #e8e6df;
+    --border-medium: #d9d6cc;
+    --border-strong: #18181b;
+    --text-primary: #18181b;
+    --text-secondary: #52525b;
+    --text-muted: #71717a;
+    --accent-lemon: #facc15;
+    --accent-lemon-bg: #fef9c3;
+    --accent-lemon-border: #fde047;
+    --accent-emerald: #059669;
+    --accent-emerald-bg: #ecfdf5;
+    --accent-amber: #d97706;
+    --accent-amber-bg: #fffbeb;
+    --accent-sky: #0284c7;
+    --accent-sky-bg: #f0f9ff;
+    --accent-rose: #dc2626;
+    --accent-rose-bg: #fef2f2;
+    --scrollbar-thumb: #d9d6cc;
+    --scrollbar-thumb-hover: #a1a1aa;
+  }
+
+  /* 2. DARK PRESET */
   [data-theme="dark"] {
     --bg-canvas: #12151a;
     --bg-surface: #181c24;
@@ -14,6 +41,9 @@
     --text-primary: #f3f4f6;
     --text-secondary: #9ca3af;
     --text-muted: #6b7280;
+    --accent-lemon: #facc15;
+    --accent-lemon-bg: rgba(250, 204, 21, 0.15);
+    --accent-lemon-border: rgba(250, 204, 21, 0.3);
     --accent-emerald: #10b981;
     --accent-emerald-bg: rgba(16, 185, 129, 0.12);
     --accent-amber: #f59e0b;
@@ -24,54 +54,6 @@
     --accent-rose-bg: rgba(239, 68, 68, 0.12);
     --scrollbar-thumb: #29303d;
     --scrollbar-thumb-hover: #3b4458;
-  }
-
-  /* 2. OLED DARK PRESET - Pure Pitch Black */
-  [data-theme="oled-dark"] {
-    --bg-canvas: #000000;
-    --bg-surface: #0a0a0d;
-    --bg-elevated: #131317;
-    --bg-subtle: #1c1c22;
-    --border-subtle: rgba(255, 255, 255, 0.11);
-    --border-medium: rgba(255, 255, 255, 0.20);
-    --border-strong: rgba(255, 255, 255, 0.35);
-    --text-primary: #f8fafc;
-    --text-secondary: #94a3b8;
-    --text-muted: #64748b;
-    --accent-emerald: #10b981;
-    --accent-emerald-bg: rgba(16, 185, 129, 0.14);
-    --accent-amber: #f59e0b;
-    --accent-amber-bg: rgba(245, 158, 11, 0.14);
-    --accent-sky: #38bdf8;
-    --accent-sky-bg: rgba(56, 189, 248, 0.14);
-    --accent-rose: #f43f5e;
-    --accent-rose-bg: rgba(244, 63, 94, 0.14);
-    --scrollbar-thumb: #22222a;
-    --scrollbar-thumb-hover: #33333f;
-  }
-
-  /* 3. LIGHT PRESET - Warm Sophisticated Off-White */
-  [data-theme="light"] {
-    --bg-canvas: #f8f8fa;
-    --bg-surface: #ffffff;
-    --bg-elevated: #f1f2f5;
-    --bg-subtle: #e5e7eb;
-    --border-subtle: rgba(0, 0, 0, 0.08);
-    --border-medium: rgba(0, 0, 0, 0.16);
-    --border-strong: rgba(0, 0, 0, 0.28);
-    --text-primary: #111827;
-    --text-secondary: #4b5563;
-    --text-muted: #9ca3af;
-    --accent-emerald: #059669;
-    --accent-emerald-bg: rgba(5, 150, 105, 0.10);
-    --accent-amber: #d97706;
-    --accent-amber-bg: rgba(217, 119, 6, 0.10);
-    --accent-sky: #0284c7;
-    --accent-sky-bg: rgba(2, 132, 199, 0.10);
-    --accent-rose: #dc2626;
-    --accent-rose-bg: rgba(220, 38, 38, 0.10);
-    --scrollbar-thumb: #d1d5db;
-    --scrollbar-thumb-hover: #9ca3af;
   }
 
   /* 4. OLED LIGHT PRESET - True Paper White Crisp Minimal */

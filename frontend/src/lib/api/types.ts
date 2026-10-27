@@ -1,6 +1,6 @@
 /**
- * Ragnarok Sovereign AI Agent - Type Definitions
- * Aligned with Ragnarok Research Proposal (FR1-FR4, NFR1-NFR4)
+ * Go 81 Sovereign AI Agent - Type Definitions
+ * Aligned with Go 81 Specifications (FR1-FR4, NFR1-NFR4)
  */
 
 export type RiskLevel = 'low' | 'medium' | 'high' | 'critical';
@@ -84,8 +84,8 @@ export interface ChatMessage {
   role: 'user' | 'agent' | 'system';
   content: string;
   timestamp: string;
-  thoughtTrace?: string; // Seer's telling / chain of thought (NFR4.1)
-  citedMemoryIds?: string[]; // Referenced memories from Mimir's well
+  thoughtTrace?: string; // Reasoning trace / chain of thought (NFR4.1)
+  citedMemoryIds?: string[]; // Referenced memories from local encrypted store
   actionProposal?: ActionProposal; // Embedded approval gate
   relatedTaskId?: string;
 }

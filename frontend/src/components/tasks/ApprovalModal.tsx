@@ -49,43 +49,43 @@ export const ApprovalModal: React.FC<ApprovalModalProps> = ({
     <Modal
       isOpen={isOpen}
       onClose={onClose}
-      title="Gjallarhorn Approval Gate"
+      title="Security Approval Gate"
       description="Sensitive operation requires just-in-time user authorization (FR4.3)"
       maxWidth="xl"
     >
       <div className="space-y-4">
         {/* Risk Banner */}
-        <div className="p-3.5 rounded-lg bg-zinc-900 border border-zinc-800 flex items-start gap-3">
-          <div className="p-2 rounded-md bg-amber-950/60 text-amber-400 border border-amber-800/40 shrink-0">
+        <div className="p-3.5 rounded-xl bg-amber-50 border border-amber-200 flex items-start gap-3">
+          <div className="p-2 rounded-lg bg-amber-100 text-amber-800 border border-amber-300 shrink-0">
             <ShieldAlert className="w-5 h-5" />
           </div>
           <div className="flex-1">
             <div className="flex items-center justify-between">
-              <span className="text-xs font-mono uppercase tracking-wider text-zinc-400">
-                Tool: <code className="text-zinc-200 font-semibold">{request.toolName}</code>
+              <span className="text-xs font-mono uppercase tracking-wider text-zinc-600 font-semibold">
+                Tool: <code className="text-zinc-900 font-bold">{request.toolName}</code>
               </span>
               <Badge variant={riskVariant[request.riskLevel]} dot>
                 {request.riskLevel.toUpperCase()} RISK
               </Badge>
             </div>
-            <p className="mt-1 text-sm font-medium text-zinc-100">{request.actionTitle}</p>
-            <p className="mt-0.5 text-xs text-zinc-400">{request.rationale}</p>
+            <p className="mt-1 text-sm font-bold text-zinc-950">{request.actionTitle}</p>
+            <p className="mt-0.5 text-xs text-zinc-600">{request.rationale}</p>
           </div>
         </div>
 
         {/* Task Context */}
-        <div className="text-xs text-zinc-400 bg-zinc-950/50 p-2.5 rounded-md border border-zinc-850">
-          <span className="font-medium text-zinc-300">Originating Task Goal:</span> {request.taskGoal}
+        <div className="text-xs text-zinc-700 bg-[#FAF9F5] p-3 rounded-lg border border-[#EAE8E2]">
+          <span className="font-bold text-zinc-900">Originating Task Goal:</span> {request.taskGoal}
         </div>
 
         {/* Command or Payload Inspection */}
         <div>
-          <label className="text-xs font-medium text-zinc-300 flex items-center gap-1.5 mb-1.5">
-            <Terminal className="w-3.5 h-3.5 text-zinc-400" />
+          <label className="text-xs font-semibold text-zinc-800 flex items-center gap-1.5 mb-1.5">
+            <Terminal className="w-3.5 h-3.5 text-zinc-500" />
             Inspected Command / Payload
           </label>
-          <div className="relative rounded-lg bg-[#090b0e] border border-zinc-800 p-3 overflow-x-auto">
-            <pre className="font-mono text-xs text-emerald-300 leading-relaxed whitespace-pre-wrap break-all">
+          <div className="relative rounded-xl bg-[#FAF9F5] border border-[#EAE8E2] p-3.5 overflow-x-auto shadow-2xs">
+            <pre className="font-mono text-xs text-zinc-900 leading-relaxed whitespace-pre-wrap break-all font-medium">
               {request.commandOrPayload}
             </pre>
           </div>
@@ -94,7 +94,7 @@ export const ApprovalModal: React.FC<ApprovalModalProps> = ({
         {/* Rejection input toggle */}
         {showRejectionInput && (
           <div className="space-y-1.5 animate-in fade-in duration-150">
-            <label className="text-xs text-zinc-300">
+            <label className="text-xs font-semibold text-zinc-800">
               Rejection Directive for Agent Reflection (FR3.3 Self-Correction):
             </label>
             <textarea
@@ -102,7 +102,7 @@ export const ApprovalModal: React.FC<ApprovalModalProps> = ({
               onChange={(e) => setRejectionNotes(e.target.value)}
               placeholder="e.g. Do not touch production files. Use test/ directory instead."
               rows={2}
-              className="w-full text-xs rounded-lg bg-zinc-900 border border-zinc-700/80 p-2 text-zinc-200 placeholder-zinc-500 focus:border-rose-500 focus:ring-1 focus:ring-rose-500"
+              className="w-full text-xs rounded-xl bg-white border border-zinc-300 p-2.5 text-zinc-900 placeholder-zinc-400 focus:border-rose-500 focus:ring-1 focus:ring-rose-500"
             />
           </div>
         )}

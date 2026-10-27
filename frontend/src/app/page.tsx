@@ -145,13 +145,13 @@ export default function CommandCenterPage() {
   };
 
   const starters = [
-    'Triage project inbox and stage obligation checklist',
     'Audit local network sockets for sovereign privacy guarantee',
-    'Run Norns memory consolidation and prune obsolete traces',
+    'Plan multi-step task for project verification and build',
+    'Run memory consolidation and prune obsolete traces',
   ];
 
   return (
-    <div className="flex min-h-screen bg-[#090b0e] text-zinc-100">
+    <div className="flex min-h-screen bg-[#FAF9F5] text-zinc-900">
       {/* Persistent Application Shell Sidebar */}
       <AppSidebar
         pendingApprovalsCount={
@@ -185,22 +185,22 @@ export default function CommandCenterPage() {
         {/* Command Center Chat Canvas */}
         <main className="flex-1 flex flex-col max-w-5xl w-full mx-auto p-4 sm:p-6 overflow-hidden">
           {/* Active Runtime Header Pill */}
-          <div className="mb-4 p-3 rounded-xl bg-[#101319] border border-zinc-800/80 flex flex-wrap items-center justify-between gap-3 text-xs">
+          <div className="mb-4 p-3.5 rounded-xl bg-white border border-[#E5E3DC] shadow-2xs flex flex-wrap items-center justify-between gap-3 text-xs">
             <div className="flex items-center gap-3">
-              <span className="flex items-center gap-1.5 font-mono text-zinc-300">
-                <Bot className="w-4 h-4 text-emerald-400" />
-                {runtimeStatus?.model || 'llama3.2:3b-instruct-q8_0'}
+              <span className="flex items-center gap-1.5 font-mono text-zinc-800 font-semibold">
+                <Bot className="w-4 h-4 text-zinc-900" />
+                {runtimeStatus?.model || 'llama3.2:3b'}
               </span>
-              <span className="text-zinc-600">|</span>
-              <span className="flex items-center gap-1.5 font-mono text-zinc-400">
-                <Brain className="w-3.5 h-3.5 text-sky-400" />
-                1,428 Mimir Runes Active
+              <span className="text-zinc-300">|</span>
+              <span className="flex items-center gap-1.5 font-mono text-zinc-600">
+                <Brain className="w-3.5 h-3.5 text-zinc-500" />
+                1,428 Memory Records Active
               </span>
             </div>
 
             <div className="flex items-center gap-2">
-              <span className="text-[11px] font-mono text-emerald-400 bg-emerald-950/60 border border-emerald-800/40 px-2 py-0.5 rounded flex items-center gap-1">
-                <ShieldCheck className="w-3 h-3" />
+              <span className="text-[11px] font-mono text-emerald-800 bg-emerald-50 border border-emerald-200 px-2 py-0.5 rounded font-bold flex items-center gap-1">
+                <ShieldCheck className="w-3 h-3 text-emerald-600" />
                 0 KB Telemetry
               </span>
             </div>
@@ -217,7 +217,7 @@ export default function CommandCenterPage() {
                 return (
                   <div
                     key={msg.id}
-                    className="p-3 rounded-lg bg-zinc-950/60 border border-zinc-850 text-xs font-mono text-zinc-400 text-center"
+                    className="p-3 rounded-lg bg-[#F4F3EE] border border-[#E5E3DC] text-xs font-mono text-zinc-600 text-center"
                   >
                     {msg.content}
                   </div>
@@ -230,8 +230,8 @@ export default function CommandCenterPage() {
                   className={`flex gap-3 ${isUser ? 'justify-end' : 'justify-start'}`}
                 >
                   {!isUser && (
-                    <div className="w-8 h-8 rounded-lg bg-emerald-950/80 border border-emerald-500/40 flex items-center justify-center text-emerald-400 shrink-0 text-xs font-mono font-bold mt-1">
-                      ᚱ
+                    <div className="w-8 h-8 rounded-lg bg-yellow-400 border border-yellow-500/40 flex items-center justify-center text-zinc-950 shrink-0 text-xs font-mono font-black mt-1 shadow-2xs">
+                      81
                     </div>
                   )}
 
@@ -239,13 +239,13 @@ export default function CommandCenterPage() {
                     <div
                       className={`p-4 rounded-xl text-sm leading-relaxed ${
                         isUser
-                          ? 'bg-zinc-800/90 text-zinc-100 border border-zinc-700/60 ml-auto'
-                          : 'bg-[#11141C] text-zinc-200 border border-zinc-800/90 shadow-md'
+                          ? 'bg-zinc-950 text-white border border-zinc-900 ml-auto shadow-xs font-medium'
+                          : 'bg-white text-zinc-900 border border-[#E5E3DC] shadow-xs'
                       }`}
                     >
-                      <div className="flex items-center justify-between gap-4 mb-1.5 text-[11px] font-mono text-zinc-500">
-                        <span className="flex items-center gap-1">
-                          {isUser ? <User className="w-3 h-3" /> : <Bot className="w-3 h-3" />}
+                      <div className={`flex items-center justify-between gap-4 mb-1.5 text-[11px] font-mono ${isUser ? 'text-zinc-400' : 'text-zinc-500'}`}>
+                        <span className="flex items-center gap-1 font-semibold">
+                          {isUser ? <User className="w-3 h-3" /> : <Bot className="w-3 h-3 text-zinc-700" />}
                           {isUser ? 'You' : 'Go 81 Assistant'}
                         </span>
                         <span suppressHydrationWarning>{msg.timestamp}</span>
@@ -255,14 +255,14 @@ export default function CommandCenterPage() {
 
                       {/* Cited Memory Tags */}
                       {msg.citedMemoryIds && msg.citedMemoryIds.length > 0 && (
-                        <div className="mt-3 pt-2 border-t border-zinc-800/60 flex flex-wrap items-center gap-1.5">
-                          <span className="text-[10px] font-mono text-zinc-500 uppercase">
-                            Mimir Recall:
+                        <div className={`mt-3 pt-2 border-t ${isUser ? 'border-zinc-800' : 'border-zinc-100'} flex flex-wrap items-center gap-1.5`}>
+                          <span className={`text-[10px] font-mono uppercase font-semibold ${isUser ? 'text-zinc-400' : 'text-zinc-500'}`}>
+                            Memory Recall:
                           </span>
                           {msg.citedMemoryIds.map((memId) => (
                             <span
                               key={memId}
-                              className="text-[10px] font-mono bg-zinc-900 border border-zinc-750 text-sky-400 px-1.5 py-0.5 rounded"
+                              className="text-[10px] font-mono bg-yellow-50 border border-yellow-300 text-yellow-900 px-1.5 py-0.5 rounded font-medium"
                             >
                               #{memId}
                             </span>
@@ -271,28 +271,28 @@ export default function CommandCenterPage() {
                       )}
                     </div>
 
-                    {/* Expandable Seer's Telling / Reasoning Trace (NFR4.1 Explainability) */}
+                    {/* Expandable Reasoning Trace (NFR4.1 Explainability) */}
                     {msg.thoughtTrace && (
-                      <div className="rounded-lg bg-zinc-950/70 border border-zinc-850 overflow-hidden text-xs">
+                      <div className="rounded-lg bg-yellow-50/70 border border-yellow-200/90 overflow-hidden text-xs shadow-2xs">
                         <button
                           onClick={() =>
                             setExpandedTraceId(isTraceExpanded ? null : msg.id)
                           }
-                          className="w-full px-3 py-1.5 flex items-center justify-between text-zinc-400 hover:text-zinc-200 cursor-pointer font-mono text-[11px]"
+                          className="w-full px-3 py-1.5 flex items-center justify-between text-yellow-950 hover:bg-yellow-100/50 cursor-pointer font-mono text-[11px] font-semibold transition-colors"
                         >
-                          <span className="flex items-center gap-1.5 text-emerald-400/90">
-                            <Sparkles className="w-3 h-3" />
-                            Seer&apos;s Telling (Reasoning Trace)
+                          <span className="flex items-center gap-1.5">
+                            <Sparkles className="w-3 h-3 text-yellow-600" />
+                            Reasoning Trace
                           </span>
                           {isTraceExpanded ? (
-                            <ChevronUp className="w-3.5 h-3.5" />
+                            <ChevronUp className="w-3.5 h-3.5 text-yellow-700" />
                           ) : (
-                            <ChevronDown className="w-3.5 h-3.5" />
+                            <ChevronDown className="w-3.5 h-3.5 text-yellow-700" />
                           )}
                         </button>
 
                         {isTraceExpanded && (
-                          <div className="p-3 border-t border-zinc-850 bg-black/40 font-mono text-zinc-400 text-xs whitespace-pre-wrap leading-relaxed">
+                          <div className="p-3 border-t border-yellow-200 bg-white/80 font-mono text-zinc-700 text-xs whitespace-pre-wrap leading-relaxed">
                             {msg.thoughtTrace}
                           </div>
                         )}
@@ -301,34 +301,34 @@ export default function CommandCenterPage() {
 
                     {/* Embedded Action Proposal (FR4.3 Approval Gate) */}
                     {msg.actionProposal && (
-                      <Card className="border-amber-800/40 bg-amber-950/15 p-4 space-y-3">
+                      <Card className="border-amber-300 bg-amber-50/70 p-4 space-y-3 shadow-xs">
                         <div className="flex items-start justify-between gap-3">
                           <div className="flex items-start gap-2.5">
-                            <ShieldAlert className="w-4 h-4 text-amber-400 shrink-0 mt-0.5" />
+                            <ShieldAlert className="w-4 h-4 text-amber-600 shrink-0 mt-0.5" />
                             <div>
                               <div className="flex items-center gap-2">
-                                <span className="text-xs font-semibold text-amber-200">
+                                <span className="text-xs font-bold text-amber-950">
                                   Gatekeeper Approval Required
                                 </span>
                                 <Badge variant="amber" dot className="text-[10px]">
                                   {msg.actionProposal.riskLevel.toUpperCase()} RISK
                                 </Badge>
                               </div>
-                              <p className="mt-0.5 text-xs text-zinc-300">
+                              <p className="mt-0.5 text-xs font-medium text-zinc-900">
                                 {msg.actionProposal.actionTitle}
                               </p>
-                              <p className="mt-0.5 text-[11px] text-zinc-400">
+                              <p className="mt-0.5 text-[11px] text-zinc-600">
                                 {msg.actionProposal.description}
                               </p>
                             </div>
                           </div>
 
-                          <span className="font-mono text-[11px] text-zinc-500 uppercase">
+                          <span className="font-mono text-[11px] text-zinc-500 uppercase bg-white px-1.5 py-0.5 rounded border border-zinc-200">
                             {msg.actionProposal.toolName}
                           </span>
                         </div>
 
-                        <div className="flex items-center justify-end gap-2 pt-1 border-t border-amber-900/30">
+                        <div className="flex items-center justify-end gap-2 pt-2 border-t border-amber-200">
                           {msg.actionProposal.status === 'pending' ? (
                             <>
                               <Button
@@ -340,7 +340,7 @@ export default function CommandCenterPage() {
                                   );
                                   if (appr) setActiveApproval(appr);
                                 }}
-                                className="text-xs border-amber-700/50 text-amber-300 hover:bg-amber-950/40"
+                                className="text-xs border-amber-300 text-amber-950 hover:bg-amber-100 bg-white"
                               >
                                 Inspect Parameters
                               </Button>
@@ -359,8 +359,8 @@ export default function CommandCenterPage() {
                             <Badge
                               variant={
                                 msg.actionProposal.status === 'approved'
-                                  ? 'emerald'
-                                  : 'rose'
+                                    ? 'emerald'
+                                    : 'rose'
                               }
                             >
                               Status: {msg.actionProposal.status.toUpperCase()}
@@ -383,9 +383,9 @@ export default function CommandCenterPage() {
                 <button
                   key={i}
                   onClick={() => setInputValue(starter)}
-                  className="px-3 py-1.5 rounded-lg bg-[#11141C] border border-zinc-800 hover:border-zinc-700 text-xs text-zinc-400 hover:text-zinc-200 text-left transition-colors flex items-center gap-1.5 cursor-pointer"
+                  className="px-3 py-1.5 rounded-lg bg-white border border-[#E5E3DC] hover:border-yellow-400 hover:bg-yellow-50/50 text-xs text-zinc-700 hover:text-zinc-950 text-left transition-all shadow-2xs flex items-center gap-1.5 cursor-pointer font-medium"
                 >
-                  <ArrowUpRight className="w-3 h-3 text-emerald-400 shrink-0" />
+                  <ArrowUpRight className="w-3 h-3 text-yellow-600 shrink-0" />
                   <span>{starter}</span>
                 </button>
               ))}
@@ -393,17 +393,17 @@ export default function CommandCenterPage() {
           )}
 
           {/* Multi-Mode Prompt Input Bar */}
-          <div className="rounded-xl bg-[#11141C] border border-zinc-800 shadow-xl overflow-hidden p-2">
+          <div className="rounded-xl bg-white border border-[#E5E3DC] shadow-sm overflow-hidden p-2.5 focus-within:border-zinc-900 transition-colors">
             {/* Mode Selector */}
-            <div className="px-2 py-1 flex items-center justify-between border-b border-zinc-800/60 pb-2 mb-2 text-xs">
+            <div className="px-2 py-1 flex items-center justify-between border-b border-[#EAE8E2] pb-2 mb-2 text-xs">
               <div className="flex items-center gap-1 font-mono text-[11px]">
                 <button
                   type="button"
                   onClick={() => setActiveMode('chat')}
-                  className={`px-2 py-1 rounded cursor-pointer ${
+                  className={`px-2.5 py-1 rounded-md cursor-pointer transition-colors ${
                     activeMode === 'chat'
-                      ? 'bg-zinc-800 text-zinc-100 font-semibold'
-                      : 'text-zinc-400 hover:text-zinc-200'
+                      ? 'bg-zinc-950 text-white font-semibold shadow-2xs'
+                      : 'text-zinc-600 hover:text-zinc-950 hover:bg-zinc-100'
                   }`}
                 >
                   Chat &amp; Query
@@ -411,10 +411,10 @@ export default function CommandCenterPage() {
                 <button
                   type="button"
                   onClick={() => setActiveMode('task')}
-                  className={`px-2 py-1 rounded cursor-pointer ${
+                  className={`px-2.5 py-1 rounded-md cursor-pointer transition-colors ${
                     activeMode === 'task'
-                      ? 'bg-zinc-800 text-zinc-100 font-semibold'
-                      : 'text-zinc-400 hover:text-zinc-200'
+                      ? 'bg-zinc-950 text-white font-semibold shadow-2xs'
+                      : 'text-zinc-600 hover:text-zinc-950 hover:bg-zinc-100'
                   }`}
                 >
                   Autonomous Workflow
@@ -422,17 +422,17 @@ export default function CommandCenterPage() {
                 <button
                   type="button"
                   onClick={() => setActiveMode('memory')}
-                  className={`px-2 py-1 rounded cursor-pointer ${
+                  className={`px-2.5 py-1 rounded-md cursor-pointer transition-colors ${
                     activeMode === 'memory'
-                      ? 'bg-zinc-800 text-zinc-100 font-semibold'
-                      : 'text-zinc-400 hover:text-zinc-200'
+                      ? 'bg-zinc-950 text-white font-semibold shadow-2xs'
+                      : 'text-zinc-600 hover:text-zinc-950 hover:bg-zinc-100'
                   }`}
                 >
-                  Mimir Memory Recall
+                  Semantic Memory Search
                 </button>
               </div>
 
-              <span className="text-[10px] font-mono text-zinc-500 hidden sm:inline">
+              <span className="text-[10px] font-mono text-zinc-400 hidden sm:inline">
                 Shift + Enter for new line
               </span>
             </div>
@@ -452,11 +452,11 @@ export default function CommandCenterPage() {
                   activeMode === 'task'
                     ? 'State high-level goal to decompose into execution graph (e.g. Audit repo, run checks, stage PR)...'
                     : activeMode === 'memory'
-                    ? 'Search episodic saga logs or semantic rules (e.g. hackathon submission invariants)...'
+                    ? 'Search episodic saga logs or semantic rules (e.g. user preferences, rules, decisions)...'
                     : 'Dispatch instruction to sovereign personal agent...'
                 }
                 rows={2}
-                className="flex-1 bg-transparent border-0 text-sm text-zinc-100 placeholder-zinc-500 resize-none px-2 py-1 focus:ring-0 focus:outline-none font-sans"
+                className="flex-1 bg-transparent border-0 text-sm text-zinc-900 placeholder-zinc-400 resize-none px-2 py-1 focus:ring-0 focus:outline-none font-sans"
               />
 
               <Button

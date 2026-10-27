@@ -1,6 +1,6 @@
 import React from 'react';
 
-export type ButtonVariant = 'primary' | 'secondary' | 'outline' | 'ghost' | 'danger';
+export type ButtonVariant = 'primary' | 'secondary' | 'outline' | 'ghost' | 'danger' | 'accent';
 export type ButtonSize = 'sm' | 'md' | 'lg';
 
 interface ButtonProps extends React.ButtonHTMLAttributes<HTMLButtonElement> {
@@ -12,15 +12,17 @@ interface ButtonProps extends React.ButtonHTMLAttributes<HTMLButtonElement> {
 
 const variantStyles: Record<ButtonVariant, string> = {
   primary:
-    'bg-emerald-600 hover:bg-emerald-500 text-white shadow-sm active:translate-y-px border border-emerald-500/30',
+    'bg-zinc-950 hover:bg-zinc-800 text-white shadow-sm active:translate-y-px border border-zinc-900 font-semibold',
   secondary:
-    'bg-zinc-800 hover:bg-zinc-700 text-zinc-100 border border-zinc-700/60 active:translate-y-px',
+    'bg-white hover:bg-zinc-50 text-zinc-900 border border-zinc-200/90 shadow-xs active:translate-y-px',
   outline:
-    'bg-transparent hover:bg-zinc-800/60 text-zinc-300 border border-zinc-700 hover:text-white',
+    'bg-transparent hover:bg-zinc-100 text-zinc-800 border border-zinc-300 active:translate-y-px',
   ghost:
-    'bg-transparent hover:bg-zinc-800/50 text-zinc-400 hover:text-zinc-100 border border-transparent',
+    'bg-transparent hover:bg-zinc-150 text-zinc-600 hover:text-zinc-950 border border-transparent',
   danger:
-    'bg-rose-950/40 hover:bg-rose-900/50 text-rose-300 border border-rose-800/60 active:translate-y-px',
+    'bg-rose-50 hover:bg-rose-100 text-rose-700 border border-rose-200 active:translate-y-px',
+  accent:
+    'bg-yellow-400 hover:bg-yellow-300 text-zinc-950 font-semibold shadow-xs border border-yellow-500/30 active:translate-y-px',
 };
 
 const sizeStyles: Record<ButtonSize, string> = {

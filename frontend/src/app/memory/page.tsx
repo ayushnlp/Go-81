@@ -148,7 +148,7 @@ export default function MemoryVaultPage() {
   const semanticCount = memories.filter((m) => m.type === 'semantic').length;
 
   return (
-    <div className="flex min-h-screen bg-[#090b0e] text-zinc-100">
+    <div className="flex min-h-screen bg-[#FAF9F5] text-zinc-900">
       <AppSidebar />
 
       <div className="flex-1 flex flex-col min-w-0">
@@ -161,7 +161,7 @@ export default function MemoryVaultPage() {
 
         <AppHeader
           title="Memory Vault"
-          subtitle="Persistent episodic saga-log (Muninn) & structured semantic knowledge (Mimir) (FR1)"
+          subtitle="Persistent episodic timeline & structured semantic knowledge (FR1)"
           isBackendOnline={isBackendOnline}
           isChecking={isCheckingBackend}
           onRefreshBackend={probe}
@@ -171,36 +171,36 @@ export default function MemoryVaultPage() {
           {/* Top Bar Controls */}
           <div className="flex flex-wrap items-center justify-between gap-4">
             {/* Memory Type Tabs */}
-            <div className="flex items-center gap-1 bg-[#101319] p-1 rounded-lg border border-zinc-800 text-xs font-mono">
+            <div className="flex items-center gap-1 bg-white p-1 rounded-lg border border-[#E5E3DC] shadow-2xs text-xs font-mono">
               <button
                 onClick={() => setActiveTab('all')}
                 className={`px-3 py-1.5 rounded cursor-pointer ${
                   activeTab === 'all'
-                    ? 'bg-zinc-800 text-zinc-100 font-semibold'
-                    : 'text-zinc-400 hover:text-zinc-200'
+                    ? 'bg-zinc-950 text-white font-semibold'
+                    : 'text-zinc-600 hover:text-zinc-900'
                 }`}
               >
-                All Runes ({memories.length})
+                All Records ({memories.length})
               </button>
               <button
                 onClick={() => setActiveTab('episodic')}
                 className={`px-3 py-1.5 rounded cursor-pointer ${
                   activeTab === 'episodic'
-                    ? 'bg-zinc-800 text-zinc-100 font-semibold'
-                    : 'text-zinc-400 hover:text-zinc-200'
+                    ? 'bg-zinc-950 text-white font-semibold'
+                    : 'text-zinc-600 hover:text-zinc-900'
                 }`}
               >
-                Episodic Saga ({episodicCount})
+                Episodic Records ({episodicCount})
               </button>
               <button
                 onClick={() => setActiveTab('semantic')}
                 className={`px-3 py-1.5 rounded cursor-pointer ${
                   activeTab === 'semantic'
-                    ? 'bg-zinc-800 text-zinc-100 font-semibold'
-                    : 'text-zinc-400 hover:text-zinc-200'
+                    ? 'bg-zinc-950 text-white font-semibold'
+                    : 'text-zinc-600 hover:text-zinc-900'
                 }`}
               >
-                Mimir Knowledge ({semanticCount})
+                Semantic Knowledge ({semanticCount})
               </button>
             </div>
 
@@ -219,27 +219,27 @@ export default function MemoryVaultPage() {
           {/* Search & Category Sub-filter */}
           <div className="flex flex-wrap items-center gap-3">
             <div className="relative flex-1 min-w-[240px]">
-              <Search className="w-4 h-4 text-zinc-500 absolute left-3 top-2.5" />
+              <Search className="w-4 h-4 text-zinc-400 absolute left-3 top-2.5" />
               <input
                 type="text"
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
                 placeholder="Search across memory nodes, subjects, or tags..."
-                className="w-full text-xs bg-[#101319] border border-zinc-800 rounded-lg pl-9 pr-3 py-2 text-zinc-200 placeholder-zinc-500 focus:outline-none focus:border-emerald-500"
+                className="w-full text-xs bg-white border border-[#E5E3DC] rounded-lg pl-9 pr-3 py-2 text-zinc-900 placeholder-zinc-400 focus:outline-none focus:border-zinc-900 shadow-2xs"
               />
             </div>
 
             {activeTab !== 'episodic' && (
-              <div className="flex items-center gap-1 text-xs font-mono text-zinc-400 bg-[#101319] p-1 rounded-lg border border-zinc-800">
-                <span className="text-[11px] text-zinc-500 px-2">Category:</span>
+              <div className="flex items-center gap-1 text-xs font-mono text-zinc-600 bg-white p-1 rounded-lg border border-[#E5E3DC] shadow-2xs">
+                <span className="text-[11px] text-zinc-400 px-2">Category:</span>
                 {(['all', 'fact', 'preference', 'rule', 'entity'] as const).map((cat) => (
                   <button
                     key={cat}
                     onClick={() => setSemanticFilter(cat)}
                     className={`px-2 py-1 rounded cursor-pointer capitalize text-xs ${
                       semanticFilter === cat
-                        ? 'bg-zinc-800 text-emerald-400 font-semibold'
-                        : 'text-zinc-400 hover:text-zinc-200'
+                        ? 'bg-zinc-950 text-white font-semibold'
+                        : 'text-zinc-600 hover:text-zinc-900'
                     }`}
                   >
                     {cat}
@@ -252,8 +252,8 @@ export default function MemoryVaultPage() {
           {/* Memory Records Grid */}
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             {filteredMemories.length === 0 ? (
-              <div className="col-span-2 p-12 text-center rounded-xl bg-[#101319] border border-zinc-800 text-zinc-500 space-y-2">
-                <Database className="w-8 h-8 mx-auto text-zinc-600" />
+              <div className="col-span-2 p-12 text-center rounded-xl bg-white border border-[#E5E3DC] text-zinc-500 space-y-2">
+                <Database className="w-8 h-8 mx-auto text-zinc-400" />
                 <p className="text-sm">No memory records matched your criteria.</p>
               </div>
             ) : (
@@ -265,9 +265,9 @@ export default function MemoryVaultPage() {
                 return (
                   <Card
                     key={mem.id}
-                    className="flex flex-col justify-between hover:border-zinc-700 transition-colors"
+                    className="flex flex-col justify-between hover:border-zinc-400 transition-colors shadow-2xs"
                   >
-                    <CardHeader className="bg-[#121620]/50 py-3">
+                    <CardHeader className="bg-[#F8F7F3] py-3 border-b border-[#E5E3DC]">
                       <div className="flex items-center gap-2">
                         <Badge
                           variant={isEpisodic ? 'sky' : 'purple'}
@@ -279,29 +279,29 @@ export default function MemoryVaultPage() {
                           #{mem.id}
                         </span>
                         {episodic?.pinned && (
-                          <Pin className="w-3 h-3 text-amber-400 rotate-45" />
+                          <Pin className="w-3 h-3 text-amber-500 rotate-45" />
                         )}
                       </div>
 
                       <div className="flex items-center gap-1">
                         <button
                           onClick={() => setInspectingMemory(mem)}
-                          className="p-1 text-zinc-400 hover:text-zinc-200 cursor-pointer"
-                          title="Inspect Runes"
+                          className="p-1 text-zinc-400 hover:text-zinc-700 cursor-pointer"
+                          title="Inspect Record"
                         >
                           <Eye className="w-3.5 h-3.5" />
                         </button>
                         <button
                           onClick={() => handleStartEdit(mem)}
-                          className="p-1 text-zinc-400 hover:text-zinc-200 cursor-pointer"
+                          className="p-1 text-zinc-400 hover:text-zinc-700 cursor-pointer"
                           title="Edit Statement"
                         >
                           <Edit3 className="w-3.5 h-3.5" />
                         </button>
                         <button
                           onClick={() => handleDelete(mem.id)}
-                          className="p-1 text-zinc-400 hover:text-rose-400 cursor-pointer"
-                          title="Norn's Cut (Permanently Forget)"
+                          className="p-1 text-zinc-400 hover:text-rose-600 cursor-pointer"
+                          title="Permanently Forget Record"
                         >
                           <Trash2 className="w-3.5 h-3.5" />
                         </button>
@@ -311,19 +311,19 @@ export default function MemoryVaultPage() {
                     <CardContent className="space-y-2 pt-3 flex-1">
                       {isEpisodic ? (
                         <>
-                          <h4 className="text-sm font-semibold text-zinc-100">
+                          <h4 className="text-sm font-semibold text-zinc-900">
                             {episodic?.title}
                           </h4>
-                          <p className="text-xs text-zinc-300 leading-relaxed line-clamp-3">
+                          <p className="text-xs text-zinc-600 leading-relaxed line-clamp-3">
                             {episodic?.content}
                           </p>
                           <div className="flex flex-wrap items-center gap-1.5 pt-2">
                             {episodic?.tags.map((t) => (
                               <span
                                 key={t}
-                                className="text-[10px] font-mono bg-zinc-900 border border-zinc-800 text-zinc-400 px-1.5 py-0.5 rounded flex items-center gap-1"
+                                className="text-[10px] font-mono bg-[#F4F3EE] border border-[#E5E3DC] text-zinc-700 px-1.5 py-0.5 rounded flex items-center gap-1"
                               >
-                                <Tag className="w-2.5 h-2.5 text-zinc-500" />
+                                <Tag className="w-2.5 h-2.5 text-zinc-400" />
                                 {t}
                               </span>
                             ))}
@@ -331,10 +331,10 @@ export default function MemoryVaultPage() {
                         </>
                       ) : (
                         <>
-                          <h4 className="text-sm font-semibold text-zinc-100">
+                          <h4 className="text-sm font-semibold text-zinc-900">
                             {semantic?.subject}
                           </h4>
-                          <p className="text-xs text-zinc-300 leading-relaxed font-mono bg-zinc-950/60 p-2.5 rounded border border-zinc-850">
+                          <p className="text-xs text-zinc-800 leading-relaxed font-mono bg-[#FAF9F5] p-2.5 rounded border border-[#E5E3DC]">
                             &quot;{semantic?.statement}&quot;
                           </p>
                           <div className="flex items-center justify-between text-[11px] font-mono text-zinc-500 pt-1">
@@ -345,7 +345,7 @@ export default function MemoryVaultPage() {
                       )}
                     </CardContent>
 
-                    <div className="px-5 py-2.5 border-t border-zinc-800/60 bg-zinc-950/30 flex items-center justify-between text-[11px] font-mono text-zinc-500">
+                    <div className="px-5 py-2.5 border-t border-[#E5E3DC] bg-[#FAF9F5] flex items-center justify-between text-[11px] font-mono text-zinc-500">
                       <span className="flex items-center gap-1" suppressHydrationWarning>
                         <Calendar className="w-3 h-3" />
                         {new Date(
@@ -354,8 +354,8 @@ export default function MemoryVaultPage() {
                             : semantic!.updatedAt
                         ).toLocaleDateString()}
                       </span>
-                      <span className="text-emerald-400/90 flex items-center gap-1">
-                        <Lock className="w-3 h-3 text-emerald-500" />
+                      <span className="text-emerald-700 flex items-center gap-1 font-medium">
+                        <Lock className="w-3 h-3 text-emerald-600" />
                         AES-256 Sealed
                       </span>
                     </div>
@@ -371,27 +371,27 @@ export default function MemoryVaultPage() {
       <Modal
         isOpen={Boolean(inspectingMemory)}
         onClose={() => setInspectingMemory(null)}
-        title="Mimir Rune Inspection"
+        title="Memory Record Inspection"
         description="Encrypted vector metadata and raw state representation (FR1.2)"
       >
         {inspectingMemory && (
           <div className="space-y-3 font-mono text-xs">
-            <div className="p-3 rounded-lg bg-zinc-950 border border-zinc-800 space-y-1.5">
-              <div className="flex justify-between text-zinc-400">
-                <span>Rune Identifier:</span>
-                <span className="text-zinc-200">{inspectingMemory.id}</span>
+            <div className="p-3 rounded-lg bg-[#FAF9F5] border border-[#E5E3DC] space-y-1.5">
+              <div className="flex justify-between text-zinc-500">
+                <span>Record Identifier:</span>
+                <span className="text-zinc-900 font-semibold">{inspectingMemory.id}</span>
               </div>
-              <div className="flex justify-between text-zinc-400">
+              <div className="flex justify-between text-zinc-500">
                 <span>Storage Class:</span>
-                <span className="text-emerald-400 uppercase">{inspectingMemory.type}</span>
+                <span className="text-emerald-700 font-semibold uppercase">{inspectingMemory.type}</span>
               </div>
-              <div className="flex justify-between text-zinc-400">
+              <div className="flex justify-between text-zinc-500">
                 <span>Cryptographic Key State:</span>
-                <span className="text-emerald-400">SEALED (Host Hardware TPM)</span>
+                <span className="text-emerald-700 font-medium">SEALED (Host Hardware TPM)</span>
               </div>
-              <div className="flex justify-between text-zinc-400">
+              <div className="flex justify-between text-zinc-500">
                 <span>Embedding Model:</span>
-                <span className="text-zinc-300">nomic-embed-text (384-dim)</span>
+                <span className="text-zinc-700">nomic-embed-text (384-dim)</span>
               </div>
             </div>
 
@@ -399,7 +399,7 @@ export default function MemoryVaultPage() {
               <span className="text-[11px] text-zinc-500 uppercase tracking-wider block mb-1">
                 Raw Record JSON
               </span>
-              <pre className="bg-zinc-950 p-3 rounded-lg border border-zinc-850 text-emerald-300 overflow-x-auto text-[11px]">
+              <pre className="bg-[#1E1E1E] p-3 rounded-lg border border-zinc-800 text-emerald-300 overflow-x-auto text-[11px]">
                 {JSON.stringify(inspectingMemory, null, 2)}
               </pre>
             </div>
@@ -411,13 +411,13 @@ export default function MemoryVaultPage() {
       <Modal
         isOpen={Boolean(editingMemory)}
         onClose={() => setEditingMemory(null)}
-        title="Edit Sovereign Memory"
+        title="Edit Memory Record"
         description="Direct user control over agent knowledge base (NFR4.2)"
       >
         {editingMemory && (
           <form onSubmit={handleSaveEdit} className="space-y-4">
             <div>
-              <label className="text-xs font-medium text-zinc-300 block mb-1">
+              <label className="text-xs font-semibold text-zinc-700 block mb-1">
                 {editingMemory.type === 'semantic' ? 'Statement of Fact / Rule:' : 'Episodic Log Content:'}
               </label>
               <textarea
@@ -425,11 +425,11 @@ export default function MemoryVaultPage() {
                 onChange={(e) => setEditStatement(e.target.value)}
                 rows={4}
                 required
-                className="w-full text-xs font-mono rounded-lg bg-zinc-900 border border-zinc-700/80 p-2.5 text-zinc-200 placeholder-zinc-500 focus:border-emerald-500 focus:ring-1 focus:ring-emerald-500"
+                className="w-full text-xs font-mono rounded-lg bg-white border border-zinc-300 p-2.5 text-zinc-900 placeholder-zinc-400 focus:border-zinc-900 focus:ring-1 focus:ring-zinc-900"
               />
             </div>
 
-            <div className="pt-2 border-t border-zinc-800 flex items-center justify-end gap-2">
+            <div className="pt-2 border-t border-zinc-200 flex items-center justify-end gap-2">
               <Button
                 type="button"
                 variant="ghost"
@@ -444,7 +444,7 @@ export default function MemoryVaultPage() {
                 size="sm"
                 icon={<Check className="w-3.5 h-3.5" />}
               >
-                Inscribe Update
+                Save Update
               </Button>
             </div>
           </form>

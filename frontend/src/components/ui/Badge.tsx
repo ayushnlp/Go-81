@@ -1,6 +1,6 @@
 import React from 'react';
 
-export type BadgeVariant = 'emerald' | 'amber' | 'sky' | 'rose' | 'zinc' | 'purple';
+export type BadgeVariant = 'emerald' | 'amber' | 'sky' | 'rose' | 'zinc' | 'purple' | 'yellow';
 
 interface BadgeProps {
   children: React.ReactNode;
@@ -11,40 +11,46 @@ interface BadgeProps {
 
 const variantStyles: Record<BadgeVariant, { bg: string; text: string; border: string; dot: string }> = {
   emerald: {
-    bg: 'bg-emerald-500/10',
-    text: 'text-emerald-400',
-    border: 'border-emerald-500/20',
-    dot: 'bg-emerald-400',
+    bg: 'bg-emerald-50',
+    text: 'text-emerald-800',
+    border: 'border-emerald-200',
+    dot: 'bg-emerald-600',
   },
   amber: {
-    bg: 'bg-amber-500/10',
-    text: 'text-amber-400',
-    border: 'border-amber-500/20',
-    dot: 'bg-amber-400',
+    bg: 'bg-amber-50',
+    text: 'text-amber-800',
+    border: 'border-amber-200',
+    dot: 'bg-amber-600',
+  },
+  yellow: {
+    bg: 'bg-yellow-100',
+    text: 'text-yellow-900',
+    border: 'border-yellow-300',
+    dot: 'bg-yellow-500',
   },
   sky: {
-    bg: 'bg-sky-500/10',
-    text: 'text-sky-400',
-    border: 'border-sky-500/20',
-    dot: 'bg-sky-400',
+    bg: 'bg-sky-50',
+    text: 'text-sky-800',
+    border: 'border-sky-200',
+    dot: 'bg-sky-600',
   },
   rose: {
-    bg: 'bg-rose-500/10',
-    text: 'text-rose-400',
-    border: 'border-rose-500/20',
-    dot: 'bg-rose-400',
+    bg: 'bg-rose-50',
+    text: 'text-rose-800',
+    border: 'border-rose-200',
+    dot: 'bg-rose-600',
   },
   zinc: {
-    bg: 'bg-zinc-800/60',
-    text: 'text-zinc-300',
-    border: 'border-zinc-700/50',
-    dot: 'bg-zinc-400',
+    bg: 'bg-zinc-100',
+    text: 'text-zinc-800',
+    border: 'border-zinc-200',
+    dot: 'bg-zinc-500',
   },
   purple: {
-    bg: 'bg-purple-500/10',
-    text: 'text-purple-400',
-    border: 'border-purple-500/20',
-    dot: 'bg-purple-400',
+    bg: 'bg-purple-50',
+    text: 'text-purple-800',
+    border: 'border-purple-200',
+    dot: 'bg-purple-600',
   },
 };
 
