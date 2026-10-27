@@ -383,7 +383,7 @@ export const AgentProvider: React.FC<{ children: ReactNode }> = ({ children }) =
   };
 
   return (
-    <RagnarokContext.Provider
+    <AgentContext.Provider
       value={{
         mode,
         setMode,

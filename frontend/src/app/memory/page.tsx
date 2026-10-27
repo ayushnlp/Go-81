@@ -346,7 +346,7 @@ export default function MemoryVaultPage() {
                     </CardContent>
 
                     <div className="px-5 py-2.5 border-t border-zinc-800/60 bg-zinc-950/30 flex items-center justify-between text-[11px] font-mono text-zinc-500">
-                      <span className="flex items-center gap-1">
+                      <span className="flex items-center gap-1" suppressHydrationWarning>
                         <Calendar className="w-3 h-3" />
                         {new Date(
                           isEpisodic

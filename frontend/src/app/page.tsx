@@ -248,7 +248,7 @@ export default function CommandCenterPage() {
                           {isUser ? <User className="w-3 h-3" /> : <Bot className="w-3 h-3" />}
                           {isUser ? 'You' : 'Go 81 Assistant'}
                         </span>
-                        <span>{msg.timestamp}</span>
+                        <span suppressHydrationWarning>{msg.timestamp}</span>
                       </div>
 
                       <p className="whitespace-pre-wrap">{msg.content}</p>

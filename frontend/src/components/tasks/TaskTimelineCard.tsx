@@ -71,7 +71,7 @@ export const TaskTimelineCard: React.FC<TaskTimelineCardProps> = ({
         </div>
 
         <div className="text-right text-xs text-zinc-500 font-mono">
-          <div>Created: {new Date(task.createdAt).toLocaleTimeString()}</div>
+          <div suppressHydrationWarning>Created: {new Date(task.createdAt).toLocaleTimeString()}</div>
           {task.estimatedDurationMs && (
             <div>Est: {(task.estimatedDurationMs / 1000).toFixed(0)}s</div>
           )}

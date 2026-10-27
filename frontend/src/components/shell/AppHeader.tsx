@@ -50,7 +50,7 @@ export const AppHeader: React.FC<AppHeaderProps> = ({
         {/* Local Clock */}
         <div className="hidden sm:flex items-center gap-1.5 px-2.5 py-1 rounded-md bg-zinc-900 border border-zinc-800 text-xs font-mono text-zinc-400">
           <Clock className="w-3.5 h-3.5 text-zinc-500" />
-          <span>{timeStr || '--:--:--'}</span>
+          <span suppressHydrationWarning>{timeStr || '--:--:--'}</span>
         </div>
 
         {/* Shield Wall Status */}
