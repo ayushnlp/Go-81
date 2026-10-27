@@ -6,17 +6,17 @@ import {
   ShieldAlert,
   ChevronDown,
   ChevronUp,
-  Brain,
   Check,
   Sparkles,
-  ArrowUpRight,
-  ShieldCheck,
   Bot,
   User,
+  MoreHorizontal,
+  Keyboard,
+  Trash2,
+  RefreshCw,
 } from 'lucide-react';
 import { AppSidebar } from '@/components/shell/AppSidebar';
 import { AppHeader } from '@/components/shell/AppHeader';
-import { OfflineBanner } from '@/components/ui/OfflineBanner';
 import { Badge } from '@/components/ui/Badge';
 import { Button } from '@/components/ui/Button';
 import { Card } from '@/components/ui/Card';
@@ -36,6 +36,11 @@ export default function CommandCenterPage() {
   const [activeMode, setActiveMode] = useState<'chat' | 'task' | 'memory'>('chat');
   const [expandedTraceId, setExpandedTraceId] = useState<string | null>(null);
 
+  // Composer 3-dot overflow menu & shortcuts modal states
+  const [isMenuOpen, setIsMenuOpen] = useState(false);
+  const [showShortcutsModal, setShowShortcutsModal] = useState(false);
+  const menuRef = useRef<HTMLDivElement>(null);
+
   // System & Backend connection states
   const [isBackendOnline, setIsBackendOnline] = useState(false);
   const [isCheckingBackend, setIsCheckingBackend] = useState(false);
@@ -53,6 +58,28 @@ export default function CommandCenterPage() {
   useEffect(() => {
     scrollToBottom();
   }, [messages]);
+
+  useEffect(() => {
+    const handleClickOutside = (e: MouseEvent) => {
+      if (menuRef.current && !menuRef.current.contains(e.target as Node)) {
+        setIsMenuOpen(false);
+      }
+    };
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') {
+        setIsMenuOpen(false);
+        setShowShortcutsModal(false);
+      }
+    };
+    if (isMenuOpen || showShortcutsModal) {
+      document.addEventListener('mousedown', handleClickOutside);
+      document.addEventListener('keydown', handleKeyDown);
+    }
+    return () => {
+      document.removeEventListener('mousedown', handleClickOutside);
+      document.removeEventListener('keydown', handleKeyDown);
+    };
+  }, [isMenuOpen, showShortcutsModal]);
 
   const probeBackend = async () => {
     setIsCheckingBackend(true);
@@ -144,12 +171,6 @@ export default function CommandCenterPage() {
     );
   };
 
-  const starters = [
-    'Audit local network sockets for sovereign privacy guarantee',
-    'Plan multi-step task for project verification and build',
-    'Run memory consolidation and prune obsolete traces',
-  ];
-
   return (
     <div className="flex flex-col h-screen bg-[#F7F9FC] text-[#152033] overflow-hidden">
       {/* Top Navigation Bar */}
@@ -161,50 +182,24 @@ export default function CommandCenterPage() {
             ? 1
             : 0
         }
-        ollamaStatus={runtimeStatus?.ollamaStatus || 'connected'}
+        ollamaStatus={runtimeStatus?.ollamaStatus || (isBackendOnline ? 'connected' : 'disconnected')}
       />
 
-      {/* Offline / Staging Notification Banner */}
-      <OfflineBanner
-        isLive={isBackendOnline}
-        isChecking={isCheckingBackend}
-        onRetry={probeBackend}
-        backendUrl={api.getBaseUrl()}
-      />
-
+      {/* Clean Top Status & Centered Heading Area */}
       <AppHeader
         title="Command Center"
         subtitle="Sovereign orchestrator running on local Ollama stack"
+        centered={true}
         isBackendOnline={isBackendOnline}
         isChecking={isCheckingBackend}
         onRefreshBackend={probeBackend}
+        ollamaStatus={runtimeStatus?.ollamaStatus || (isBackendOnline ? 'connected' : 'disconnected')}
+        isInferenceActive={isSending || (isBackendOnline && runtimeStatus?.ollamaStatus === 'connected')}
       />
 
-        {/* Command Center Chat Canvas */}
-        <main className="flex-1 flex flex-col max-w-5xl w-full mx-auto p-4 sm:p-6 overflow-hidden">
-          {/* Active Runtime Header Pill */}
-          <div className="mb-4 p-3.5 rounded-xl bg-white border border-[#E5E3DC] shadow-2xs flex flex-wrap items-center justify-between gap-3 text-xs">
-            <div className="flex items-center gap-3">
-              <span className="flex items-center gap-1.5 font-mono text-zinc-800 font-semibold">
-                <Bot className="w-4 h-4 text-zinc-900" />
-                {runtimeStatus?.model || 'llama3.2:3b'}
-              </span>
-              <span className="text-zinc-300">|</span>
-              <span className="flex items-center gap-1.5 font-mono text-zinc-600">
-                <Brain className="w-3.5 h-3.5 text-zinc-500" />
-                1,428 Memory Records Active
-              </span>
-            </div>
-
-            <div className="flex items-center gap-2">
-              <span className="text-[11px] font-mono text-emerald-800 bg-emerald-50 border border-emerald-200 px-2 py-0.5 rounded font-bold flex items-center gap-1">
-                <ShieldCheck className="w-3 h-3 text-emerald-600" />
-                0 KB Telemetry
-              </span>
-            </div>
-          </div>
-
-          {/* Conversation Stream */}
+      {/* Command Center Chat Canvas */}
+      <main className="flex-1 flex flex-col max-w-5xl w-full mx-auto p-4 sm:p-6 overflow-hidden">
+        {/* Conversation Stream */}
           <div className="flex-1 overflow-y-auto space-y-4 pr-1 mb-4">
             {messages.map((msg) => {
               const isUser = msg.role === 'user';
@@ -374,69 +369,105 @@ export default function CommandCenterPage() {
             <div ref={messagesEndRef} />
           </div>
 
-          {/* Quick Action Starters */}
-          {messages.length <= 4 && (
-            <div className="mb-3 flex flex-wrap gap-2">
-              {starters.map((starter, i) => (
-                <button
-                  key={i}
-                  onClick={() => setInputValue(starter)}
-                  className="px-3 py-1.5 rounded-lg bg-white border border-[#E5E3DC] hover:border-yellow-400 hover:bg-yellow-50/50 text-xs text-zinc-700 hover:text-zinc-950 text-left transition-all shadow-2xs flex items-center gap-1.5 cursor-pointer font-medium"
-                >
-                  <ArrowUpRight className="w-3 h-3 text-yellow-600 shrink-0" />
-                  <span>{starter}</span>
-                </button>
-              ))}
-            </div>
-          )}
+          {/* Redesigned Minimal Chat Composer */}
+          <div className="relative rounded-2xl border border-[#E4E9F1] bg-white p-3 shadow-xs transition-all focus-within:border-[#14213D] focus-within:ring-1 focus-within:ring-[#14213D]/10">
+            {/* Composer Header: Identity + Text-Only Tabs + 3-Dot Menu */}
+            <div className="flex items-center justify-between gap-2 px-1 pb-2">
+              <div className="flex flex-wrap items-center gap-3 sm:gap-4 min-w-0">
+                {/* Go 81 Assistant Identity */}
+                <div className="flex items-center gap-1.5 text-xs font-medium text-[#14213D] shrink-0 select-none">
+                  <Bot className="w-3.5 h-3.5 text-[#14213D]" />
+                  <span>Go 81 Assistant</span>
+                </div>
 
-          {/* Multi-Mode Prompt Input Bar */}
-          <div className="rounded-xl bg-white border border-[#E5E3DC] shadow-sm overflow-hidden p-2.5 focus-within:border-zinc-900 transition-colors">
-            {/* Mode Selector */}
-            <div className="px-2 py-1 flex items-center justify-between border-b border-[#EAE8E2] pb-2 mb-2 text-xs">
-              <div className="flex items-center gap-1 font-mono text-[11px]">
-                <button
-                  type="button"
-                  onClick={() => setActiveMode('chat')}
-                  className={`px-2.5 py-1 rounded-md cursor-pointer transition-colors ${
-                    activeMode === 'chat'
-                      ? 'bg-zinc-950 text-white font-semibold shadow-2xs'
-                      : 'text-zinc-600 hover:text-zinc-950 hover:bg-zinc-100'
-                  }`}
-                >
-                  Chat &amp; Query
-                </button>
-                <button
-                  type="button"
-                  onClick={() => setActiveMode('task')}
-                  className={`px-2.5 py-1 rounded-md cursor-pointer transition-colors ${
-                    activeMode === 'task'
-                      ? 'bg-zinc-950 text-white font-semibold shadow-2xs'
-                      : 'text-zinc-600 hover:text-zinc-950 hover:bg-zinc-100'
-                  }`}
-                >
-                  Autonomous Workflow
-                </button>
-                <button
-                  type="button"
-                  onClick={() => setActiveMode('memory')}
-                  className={`px-2.5 py-1 rounded-md cursor-pointer transition-colors ${
-                    activeMode === 'memory'
-                      ? 'bg-zinc-950 text-white font-semibold shadow-2xs'
-                      : 'text-zinc-600 hover:text-zinc-950 hover:bg-zinc-100'
-                  }`}
-                >
-                  Semantic Memory Search
-                </button>
+                <span className="text-[#D0D5DD] select-none hidden sm:inline" aria-hidden="true">
+                  |
+                </span>
+
+                {/* Text-Only Mode Navigation Controls */}
+                <div className="flex items-center gap-3 sm:gap-4 text-xs font-medium">
+                  <button
+                    type="button"
+                    onClick={() => setActiveMode('chat')}
+                    className={`cursor-pointer transition-colors pb-0.5 ${
+                      activeMode === 'chat'
+                        ? 'text-[#14213D] font-semibold border-b-2 border-[#14213D]'
+                        : 'text-[#667085] hover:text-[#14213D] border-b-2 border-transparent'
+                    }`}
+                  >
+                    Chat &amp; Query
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setActiveMode('task')}
+                    className={`cursor-pointer transition-colors pb-0.5 ${
+                      activeMode === 'task'
+                        ? 'text-[#14213D] font-semibold border-b-2 border-[#14213D]'
+                        : 'text-[#667085] hover:text-[#14213D] border-b-2 border-transparent'
+                    }`}
+                  >
+                    Autonomous Workflow
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setActiveMode('memory')}
+                    className={`cursor-pointer transition-colors pb-0.5 ${
+                      activeMode === 'memory'
+                        ? 'text-[#14213D] font-semibold border-b-2 border-[#14213D]'
+                        : 'text-[#667085] hover:text-[#14213D] border-b-2 border-transparent'
+                    }`}
+                  >
+                    Semantic Memory Search
+                  </button>
+                </div>
               </div>
 
-              <span className="text-[10px] font-mono text-zinc-400 hidden sm:inline">
-                Shift + Enter for new line
-              </span>
+              {/* Three-Dot Composer Overflow Menu */}
+              <div className="relative shrink-0" ref={menuRef}>
+                <button
+                  type="button"
+                  onClick={() => setIsMenuOpen((prev) => !prev)}
+                  aria-label="Composer options"
+                  title="Composer options"
+                  className="flex h-7 w-7 items-center justify-center rounded-lg text-[#667085] hover:bg-[#F1F5FB] hover:text-[#14213D] transition-colors cursor-pointer"
+                >
+                  <MoreHorizontal className="w-4 h-4" />
+                </button>
+
+                {/* Popup Menu */}
+                {isMenuOpen && (
+                  <div className="absolute right-0 top-full mt-1.5 w-48 rounded-xl border border-[#E4E9F1] bg-white p-1 shadow-lg z-30 text-xs text-[#152033] animate-in fade-in slide-in-from-top-1">
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setIsMenuOpen(false);
+                        setShowShortcutsModal(true);
+                      }}
+                      className="w-full flex items-center gap-2 px-2.5 py-1.5 rounded-lg text-left hover:bg-[#F1F5FB] text-[#152033] transition-colors cursor-pointer"
+                    >
+                      <Keyboard className="w-3.5 h-3.5 text-[#667085]" />
+                      <span>Keyboard shortcuts</span>
+                    </button>
+
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setInputValue('');
+                        setIsMenuOpen(false);
+                      }}
+                      disabled={!inputValue}
+                      className="w-full flex items-center gap-2 px-2.5 py-1.5 rounded-lg text-left hover:bg-[#F1F5FB] text-[#152033] disabled:text-[#A0AEC0] disabled:cursor-not-allowed transition-colors cursor-pointer"
+                    >
+                      <Trash2 className="w-3.5 h-3.5 text-[#667085]" />
+                      <span>Clear draft</span>
+                    </button>
+                  </div>
+                )}
+              </div>
             </div>
 
-            {/* Input & Action */}
-            <form onSubmit={handleSendMessage} className="flex items-end gap-2">
+            {/* Input & Send Action (No nested borders, no dividing line) */}
+            <form onSubmit={handleSendMessage} className="flex items-end gap-2 pt-1">
               <textarea
                 value={inputValue}
                 onChange={(e) => setInputValue(e.target.value)}
@@ -454,23 +485,81 @@ export default function CommandCenterPage() {
                     : 'Dispatch instruction to sovereign personal agent...'
                 }
                 rows={2}
-                className="flex-1 bg-transparent border-0 text-sm text-zinc-900 placeholder-zinc-400 resize-none px-2 py-1 focus:ring-0 focus:outline-none font-sans"
+                className="flex-1 bg-transparent border-0 text-xs sm:text-sm text-[#152033] placeholder:text-[#94A3B8] resize-none px-1 py-1 focus:ring-0 focus:outline-none font-sans leading-relaxed"
               />
 
-              <Button
+              {/* Minimal Icon-Only Send Control */}
+              <button
                 type="submit"
-                variant="primary"
-                size="md"
-                disabled={!inputValue.trim()}
-                loading={isSending}
-                icon={<Send className="w-4 h-4" />}
-                className="shrink-0 mb-1"
+                disabled={!inputValue.trim() || isSending}
+                aria-label="Send message"
+                title="Send message"
+                className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-[#14213D] text-white hover:bg-[#22375C] active:scale-95 disabled:opacity-35 disabled:hover:bg-[#14213D] disabled:active:scale-100 disabled:cursor-not-allowed transition-all mb-0.5 cursor-pointer shadow-xs"
               >
-                Send
-              </Button>
+                {isSending ? (
+                  <RefreshCw className="w-4 h-4 animate-spin text-white" />
+                ) : (
+                  <Send className="w-4 h-4" />
+                )}
+              </button>
             </form>
           </div>
         </main>
+
+      {/* Keyboard Shortcuts Dialog */}
+      {showShortcutsModal && (
+        <div
+          role="dialog"
+          aria-modal="true"
+          aria-labelledby="shortcuts-title"
+          className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-xs p-4"
+        >
+          <div className="w-full max-w-sm rounded-2xl border border-[#E4E9F1] bg-white p-5 shadow-xl animate-in fade-in zoom-in-95">
+            <div className="flex items-center justify-between pb-3 border-b border-[#E4E9F1]">
+              <h3 id="shortcuts-title" className="text-sm font-semibold text-[#14213D] flex items-center gap-2">
+                <Keyboard className="w-4 h-4 text-[#667085]" />
+                Keyboard Shortcuts
+              </h3>
+              <button
+                type="button"
+                onClick={() => setShowShortcutsModal(false)}
+                className="text-[#8792A5] hover:text-[#14213D] text-xs font-bold p-1 cursor-pointer"
+              >
+                ✕
+              </button>
+            </div>
+            <div className="py-4 space-y-2.5 text-xs text-[#4B5563]">
+              <div className="flex items-center justify-between">
+                <span>Send message</span>
+                <kbd className="px-2 py-0.5 rounded bg-[#F7F9FC] border border-[#E4E9F1] font-mono text-[11px] text-[#14213D]">
+                  Enter
+                </kbd>
+              </div>
+              <div className="flex items-center justify-between">
+                <span>New line in prompt</span>
+                <kbd className="px-2 py-0.5 rounded bg-[#F7F9FC] border border-[#E4E9F1] font-mono text-[11px] text-[#14213D]">
+                  Shift + Enter
+                </kbd>
+              </div>
+              <div className="flex items-center justify-between">
+                <span>Dismiss menu / modal</span>
+                <kbd className="px-2 py-0.5 rounded bg-[#F7F9FC] border border-[#E4E9F1] font-mono text-[11px] text-[#14213D]">
+                  Esc
+                </kbd>
+              </div>
+            </div>
+            <div className="pt-2 text-right">
+              <Button
+                size="sm"
+                variant="outline"
+                onClick={() => setShowShortcutsModal(false)}
+              >
+                Close
+              </Button>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Interactive Approval Modal */}
       <ApprovalModal

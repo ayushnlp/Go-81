@@ -121,7 +121,7 @@ export const AppSidebar: React.FC<AppSidebarProps> = ({
           {/* Status for mobile */}
           <span
             role="status"
-            className={`inline-flex items-center gap-2 rounded-full border px-2.5 py-1.5 text-[11px] font-medium md:hidden ${status.background} ${status.border} ${status.text}`}
+            className={`inline-flex items-center gap-1.5 text-[11px] font-medium md:hidden ${status.text}`}
           >
             <span className={`h-1.5 w-1.5 rounded-full ${status.dot}`} />
             {status.label}
@@ -183,15 +183,9 @@ export const AppSidebar: React.FC<AppSidebarProps> = ({
         <div className="hidden shrink-0 items-center gap-2 md:flex">
           <span
             role="status"
-            className={`inline-flex items-center gap-2 rounded-full border px-3 py-2 text-[11px] font-medium ${status.background} ${status.border} ${status.text}`}
+            className={`inline-flex items-center gap-1.5 text-xs font-medium ${status.text}`}
           >
-            <Radio
-              aria-hidden="true"
-              className="h-3.5 w-3.5"
-            />
-
             <span className={`h-1.5 w-1.5 rounded-full ${status.dot}`} />
-
             {status.label}
           </span>
         </div>
