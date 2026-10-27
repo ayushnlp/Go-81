@@ -10,7 +10,7 @@ import logging
 import os
 from contextlib import asynccontextmanager
 from datetime import datetime, timezone
-import time
+import re
 from typing import Any, Dict, List, Optional
 import httpx
 from fastapi import FastAPI, HTTPException, Request, status
@@ -190,6 +190,34 @@ async def dispatch_chat_message(req: ChatMessageRequest):
             content = "Memory subsystem is currently unavailable. No prior preferences or decisions could be retrieved."
         elif not cited_ids:
             content = "I reviewed your saved memories, but found no relevant prior preferences, goals, or decisions matching your question."
+            planner_inst = get_planner()
+            if planner_inst and getattr(planner_inst, "ollama_endpoint", None):
+                try:
+                    with httpx.Client(timeout=10.0) as http_client:
+                        from backend.ollama_client import OllamaClient, OllamaConfig
+                        cfg = OllamaConfig(
+                            base_url=planner_inst.ollama_endpoint,
+                            chat_model=planner_inst.model,
+                            connect_timeout=2.0,
+                            request_timeout=10.0,
+                        )
+                        client = OllamaClient(config=cfg, http_client=http_client)
+                        sys_prompt = (
+                            "You are Go 81, a Sovereign Personal AI Agent running locally on the user's machine. "
+                            "You assist with workflow orchestration, coding, task automation, and secure local memory. "
+                            "Give a direct, helpful, and concise response."
+                        )
+                        chat_res = client.chat(
+                            messages=[
+                                {"role": "system", "content": sys_prompt},
+                                {"role": "user", "content": prompt},
+                            ],
+                            timeout=10.0,
+                        )
+                        if chat_res.content and chat_res.content.strip():
+                            content = chat_res.content.strip()
+                except Exception:
+                    pass
         else:
             sections = []
             if context.get("preferences"):
@@ -203,35 +231,43 @@ async def dispatch_chat_message(req: ChatMessageRequest):
                 sections.append("Prior Decisions:\n" + "\n".join(d_lines))
             if context.get("verified_facts"):
                 f_lines = [f"- {f['subject']} {f['predicate']} {f['object_value']}" for f in context["verified_facts"]]
-            content = "Here is what I found in your personal memory:\n\n" + "\n\n".join(sections)
+            verified_memory_text = "\n\n".join(sections)
+            content = "Here is what I found in your personal memory:\n\n" + verified_memory_text
 
             # If live model inference is reachable, consume injected memory context in model chat
             planner_inst = get_planner()
             if planner_inst and getattr(planner_inst, "ollama_endpoint", None) and cited_ids:
                 try:
-                    with httpx.Client(timeout=2.0) as http_client:
+                    with httpx.Client(timeout=10.0) as http_client:
                         from backend.ollama_client import OllamaClient, OllamaConfig
                         cfg = OllamaConfig(
                             base_url=planner_inst.ollama_endpoint,
                             chat_model=planner_inst.model,
-                            connect_timeout=1.0,
-                            request_timeout=2.0,
+                            connect_timeout=2.0,
+                            request_timeout=10.0,
                         )
                         client = OllamaClient(config=cfg, http_client=http_client)
                         sys_prompt = (
                             "You are Go 81's Sovereign Personal Assistant. "
                             "Answer the user's question accurately using their verified personal memories:\n"
-                            f"{context.get('formatted_context', '')}"
+                            f"{verified_memory_text}\n\n"
+                            "Important: Always preserve and state the exact terminology, names, and values of the user's preferences, goals, and decisions verbatim as recorded."
                         )
                         chat_res = client.chat(
                             messages=[
                                 {"role": "system", "content": sys_prompt},
                                 {"role": "user", "content": prompt},
                             ],
-                            timeout=2.0,
+                            options={"temperature": 0.0},
+                            timeout=10.0,
                         )
                         if chat_res.content and chat_res.content.strip():
-                            content = chat_res.content.strip()
+                            candidate = chat_res.content.strip()
+                            for p in context.get("preferences", []):
+                                val = p.get("object_value")
+                                if isinstance(val, str) and val.lower() in candidate.lower() and val not in candidate:
+                                    candidate = re.sub(re.escape(val), val, candidate, flags=re.IGNORECASE)
+                            content = candidate
                 except Exception:
                     pass
 
