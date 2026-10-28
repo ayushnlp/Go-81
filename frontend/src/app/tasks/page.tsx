@@ -9,8 +9,6 @@ import {
   Sparkles,
 } from 'lucide-react';
 import { AppSidebar } from '@/components/shell/AppSidebar';
-import { AppHeader } from '@/components/shell/AppHeader';
-import { OfflineBanner } from '@/components/ui/OfflineBanner';
 import { Button } from '@/components/ui/Button';
 import { Modal } from '@/components/ui/Modal';
 import { TaskTimelineCard } from '@/components/tasks/TaskTimelineCard';
@@ -173,22 +171,7 @@ export default function TasksPage() {
     <div className="flex flex-col min-h-screen bg-[#F7F9FC] text-[#152033]">
       <AppSidebar pendingApprovalsCount={pendingApprovalsCount} />
 
-      <OfflineBanner
-        isLive={isBackendOnline}
-        isChecking={isCheckingBackend}
-        onRetry={probe}
-        backendUrl={api.getBaseUrl()}
-      />
-
-      <AppHeader
-        title="Task Execution Timeline"
-        subtitle="Autonomous multi-step execution graphs with approval gates (FR3)"
-        isBackendOnline={isBackendOnline}
-        isChecking={isCheckingBackend}
-        onRefreshBackend={probe}
-      />
-
-        <main className="flex-1 max-w-5xl w-full mx-auto p-4 sm:p-6 space-y-6">
+      <main className="flex-1 max-w-5xl w-full mx-auto p-4 sm:p-6 space-y-6">
           {/* Top Control Bar */}
           <div className="flex flex-wrap items-center justify-between gap-4">
             {/* Filter Tabs */}

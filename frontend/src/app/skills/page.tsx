@@ -16,8 +16,6 @@ import {
   Check,
 } from 'lucide-react';
 import { AppSidebar } from '@/components/shell/AppSidebar';
-import { AppHeader } from '@/components/shell/AppHeader';
-import { OfflineBanner } from '@/components/ui/OfflineBanner';
 import { Badge } from '@/components/ui/Badge';
 import { Button } from '@/components/ui/Button';
 import { Card, CardHeader, CardContent, CardTitle, CardFooter } from '@/components/ui/Card';
@@ -138,22 +136,7 @@ export default function SkillsPage() {
     <div className="flex flex-col min-h-screen bg-[#F7F9FC] text-[#152033]">
       <AppSidebar />
 
-      <OfflineBanner
-        isLive={isBackendOnline}
-        isChecking={isCheckingBackend}
-        onRetry={probe}
-        backendUrl={api.getBaseUrl()}
-      />
-
-      <AppHeader
-        title="Skills Forge"
-        subtitle="Modular registered tools, parameters, and sandboxed execution boundaries (FR2)"
-        isBackendOnline={isBackendOnline}
-        isChecking={isCheckingBackend}
-        onRefreshBackend={probe}
-      />
-
-        <main className="flex-1 max-w-5xl w-full mx-auto p-4 sm:p-6 space-y-6">
+      <main className="flex-1 max-w-5xl w-full mx-auto p-4 sm:p-6 space-y-6">
           {/* Top Control Bar */}
           <div className="flex flex-wrap items-center justify-between gap-4">
             {/* Category Filter */}

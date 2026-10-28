@@ -45,12 +45,6 @@ export const DEMO_RUNTIME_STATUS: AgentRuntimeStatus = {
 
 export const DEMO_CHAT_MESSAGES: ChatMessage[] = [
   {
-    id: 'msg-01',
-    role: 'system',
-    content: 'Go 81 Sovereign Agent initialized. All reasoning routed to local Ollama instance (llama3.2:3b). Zero outbound telemetry active.',
-    timestamp: '01:15 am',
-  },
-  {
     id: 'msg-02',
     role: 'user',
     content: 'Audit repository security sockets, verify loopback bindings, and check SQLite database encryption.',

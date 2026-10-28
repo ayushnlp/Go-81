@@ -99,7 +99,7 @@ class Go81ApiClient {
   async getRuntimeStatus(): Promise<ApiResponse<AgentRuntimeStatus>> {
     try {
       const controller = new AbortController();
-      const timeoutId = setTimeout(() => controller.abort(), 1800);
+      const timeoutId = setTimeout(() => controller.abort(), 6000);
       const res = await fetch(`${this.baseUrl}/api/agent/status`, {
         signal: controller.signal,
         cache: 'no-store',
@@ -130,7 +130,7 @@ class Go81ApiClient {
   ): Promise<ApiResponse<ChatMessage>> {
     try {
       const controller = new AbortController();
-      const timeoutId = setTimeout(() => controller.abort(), 8000);
+      const timeoutId = setTimeout(() => controller.abort(), 60000);
       const res = await fetch(`${this.baseUrl}/api/agent/chat`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },

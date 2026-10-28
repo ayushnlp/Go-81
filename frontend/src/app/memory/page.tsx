@@ -151,13 +151,6 @@ export default function MemoryVaultPage() {
     <div className="flex flex-col min-h-screen bg-[#F7F9FC] text-[#152033]">
       <AppSidebar />
 
-      <OfflineBanner
-        isLive={isBackendOnline}
-        isChecking={isCheckingBackend}
-        onRetry={probe}
-        backendUrl={api.getBaseUrl()}
-      />
-
       <AppHeader
         title="Memory Vault"
         subtitle="Persistent episodic timeline & structured semantic knowledge (FR1)"
