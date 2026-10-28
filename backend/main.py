@@ -20,6 +20,7 @@ from fastapi.responses import StreamingResponse
 from pydantic import BaseModel, Field
 
 from app.api.routes import SubsystemContainer, router as memory_router
+from app.skills.routes import router as skills_router, SkillContainer
 from app.memory.service import query_relevant_context
 from backend.health import ModelHealthReport, probe_model_health
 from backend.orchestrator import TaskOrchestrator
@@ -37,6 +38,7 @@ def get_orchestrator() -> TaskOrchestrator:
     if SubsystemContainer.db is None:
         db_path = os.environ.get("GO81_DB_PATH", "go81_memory.db")
         SubsystemContainer.initialize(db_path=db_path)
+        SkillContainer.initialize(SubsystemContainer.db)
     if orchestrator is None:
         orchestrator = TaskOrchestrator(
             recovery_manager=SubsystemContainer.recovery_manager,
@@ -55,6 +57,7 @@ def get_planner() -> TaskPlanner:
     if SubsystemContainer.db is None:
         db_path = os.environ.get("GO81_DB_PATH", "go81_memory.db")
         SubsystemContainer.initialize(db_path=db_path)
+        SkillContainer.initialize(SubsystemContainer.db)
     if planner is None:
         planner = TaskPlanner(
             model=os.environ.get("OLLAMA_CHAT_MODEL", os.environ.get("GO81_MODEL", "llama3.2:3b")),
@@ -72,6 +75,7 @@ async def lifespan(app: FastAPI):
     if SubsystemContainer.db is None:
         db_path = os.environ.get("GO81_DB_PATH", "go81_memory.db")
         SubsystemContainer.initialize(db_path=db_path)
+        SkillContainer.initialize(SubsystemContainer.db)
 
     # Crash Recovery Audit on startup (Member 2 requirement)
     if SubsystemContainer.recovery_manager:
@@ -121,6 +125,7 @@ app.add_middleware(
 
 # Include Member 2's memory and security routes
 app.include_router(memory_router)
+app.include_router(skills_router, prefix="/api")
 
 
 # ============================================================================

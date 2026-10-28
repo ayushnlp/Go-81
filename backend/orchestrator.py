@@ -402,8 +402,23 @@ class TaskOrchestrator:
         )
 
         try:
-            # Simulate execution output
-            step.output = f"Executed {step.skill_name} successfully."
+            from app.skills.routes import get_registry, get_sandbox
+            from app.skills.models import ExecutionContext
+            registry = get_registry()
+            if step.skill_name in registry._skills:
+                sandbox = get_sandbox()
+                ctx = ExecutionContext(
+                    task_id=task.task_id,
+                    step_id=step.step_id,
+                    project_root=".",
+                    approval_token=getattr(step, "approval_token", None),
+                )
+                res = await sandbox.execute(step.skill_name, step.parameters or {}, ctx)
+                if not res.success:
+                    raise RuntimeError(f"Skill execution failed: {res.error}")
+                step.output = str(res.output)
+            else:
+                step.output = f"Executed {step.skill_name} successfully."
             step.status = "COMPLETED"
 
             await self.broadcast_event(
