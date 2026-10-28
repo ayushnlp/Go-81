@@ -10,11 +10,11 @@ const inter = Inter({
 
 export const metadata: Metadata = {
   title: {
-    default: 'Go 81 | Sovereign AI Command Center',
+    default: 'Go 81 | Autonomous AI Agent Command Center',
     template: '%s | Go 81',
   },
   description:
-    'Go 81 is a local-first AI workspace powered by Ollama, with persistent memory, intelligent workflows, and privacy-focused controls.',
+    'Go 81 is a desktop-first sovereign AI agent command center powered by Ollama, with encrypted memory, transparent security gates, and local autonomy.',
   applicationName: 'Go 81',
 };
 
@@ -24,9 +24,27 @@ export default function RootLayout({
   children: React.ReactNode;
 }>) {
   return (
-    <html lang="en" data-theme="light">
+    <html lang="en" data-theme="dark" suppressHydrationWarning>
+      <head>
+        <script
+          dangerouslySetInnerHTML={{
+            __html: `
+              try {
+                const storedTheme = localStorage.getItem('go81_theme');
+                if (storedTheme) {
+                  document.documentElement.setAttribute('data-theme', storedTheme);
+                } else if (window.matchMedia && window.matchMedia('(prefers-color-scheme: light)').matches) {
+                  document.documentElement.setAttribute('data-theme', 'light');
+                } else {
+                  document.documentElement.setAttribute('data-theme', 'dark');
+                }
+              } catch (e) {}
+            `,
+          }}
+        />
+      </head>
       <body
-        className={`${inter.className} ${inter.variable} min-h-screen bg-[#F7F9FC] text-[#152033] antialiased selection:bg-[#DCE6FF] selection:text-[#14213D]`}
+        className={`${inter.className} ${inter.variable} min-h-screen antialiased selection:bg-[#ea580c] selection:text-white`}
       >
         {children}
       </body>

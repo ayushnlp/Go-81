@@ -213,3 +213,62 @@ export interface PrivacySettings {
   backgroundTriggersEnabled: boolean;
   fastApiBackendUrl: string;
 }
+
+
+// --- Flight Recorder & Activity History ---
+export interface FlightRecorderEvent {
+  event_id: string;
+  timestamp: string;
+  event_type: string;
+  source_type: string;
+  project_id?: string;
+  task_id?: string;
+  step_id?: string;
+  payload: Record<string, unknown>;
+  evidence_hashes?: string[];
+}
+
+// --- Project Checkpoints ---
+export interface ProjectCheckpoint {
+  checkpoint_id: string;
+  project_id: string;
+  timestamp: string;
+  git_commit?: string;
+  state_hash: string;
+  label?: string;
+  description?: string;
+  validation_status?: string;
+  status: string;
+}
+
+// --- Audit Records ---
+export interface AuditRecord {
+  id: string;
+  timestamp: string;
+  skill_id: string;
+  action: string;
+  actor: string;
+  parameters: Record<string, unknown>;
+  status: 'allowed' | 'denied' | 'error' | 'approved' | 'rejected';
+  execution_duration_ms?: number;
+  violation_reason?: string;
+}
+
+// --- Filesystem & Explorer ---
+export interface FileEntry {
+  name: string;
+  rel_path: string;
+  is_dir: boolean;
+  size?: number;
+}
+
+// --- Model Health Report ---
+export interface ModelHealth {
+  status: string;
+  model: string;
+  endpoint: string;
+  latency_ms?: number;
+  context_length?: number;
+  quantization?: string;
+  loaded?: boolean;
+}
