@@ -168,6 +168,44 @@ class ChatMessageResponse(BaseModel):
 # Conversational Assistant Endpoint (CONTRACT Section 2.2)
 # ============================================================================
 
+def is_explicit_memory_query(query: str) -> bool:
+    """
+    Detects if the user query is specifically inquiring about stored personal memories,
+    user preferences, goals, past decisions, or remembered history.
+    """
+    if not query:
+        return False
+    q = query.strip().lower()
+
+    # Explicit memory keywords and phrases
+    memory_phrases = [
+        "what do you remember", "what is remembered", "do you remember",
+        "what are my preferences", "what is my preference", "what do i prefer",
+        "my saved preferences", "do i have any preferences", "saved memories",
+        "show my memories", "list my memories", "my memories",
+        "what did i say about", "past decisions", "previous decisions",
+        "what are my goals", "what is my goal", "my project goals",
+        "what did we decide", "search memory", "find memory", "recall memory",
+        "what tone do i prefer", "what shell do i prefer", "what terminal",
+        "what font do i use", "my primary programming language",
+        "what is my primary", "which do i prefer", "what is my preferred",
+        "my saved", "what is my", "what are my"
+    ]
+    for phrase in memory_phrases:
+        if phrase in q:
+            return True
+
+    # Memory signals
+    memory_terms = [
+        "preference", "preferences", "memories", "remember", "remembered",
+        "prior decision", "past decision", "my goal", "my goals"
+    ]
+    if any(term in q for term in memory_terms):
+        return True
+
+    return False
+
+
 @app.post("/api/agent/chat", response_model=ChatMessageResponse, tags=["Sovereign Agent"])
 async def dispatch_chat_message(req: ChatMessageRequest):
     """
@@ -178,6 +216,7 @@ async def dispatch_chat_message(req: ChatMessageRequest):
     prompt = req.prompt.strip()
     is_conv = is_conversational_query(prompt)
     mode = (req.mode or "chat").lower()
+    is_memory_query = (mode == "memory") or is_explicit_memory_query(prompt)
 
     # Query durable memory context
     context = query_relevant_context(prompt, memory_service=SubsystemContainer.memory_service)
@@ -186,39 +225,12 @@ async def dispatch_chat_message(req: ChatMessageRequest):
 
     # If conversational mode or query is conversational, NEVER trigger tools
     if mode == "chat" or is_conv or mode == "memory":
-        if context.get("memory_available") is False:
-            content = "Memory subsystem is currently unavailable. No prior preferences or decisions could be retrieved."
-        elif not cited_ids:
-            content = "I reviewed your saved memories, but found no relevant prior preferences, goals, or decisions matching your question."
-            planner_inst = get_planner()
-            if planner_inst and getattr(planner_inst, "ollama_endpoint", None):
-                try:
-                    with httpx.Client(timeout=10.0) as http_client:
-                        from backend.ollama_client import OllamaClient, OllamaConfig
-                        cfg = OllamaConfig(
-                            base_url=planner_inst.ollama_endpoint,
-                            chat_model=planner_inst.model,
-                            connect_timeout=2.0,
-                            request_timeout=10.0,
-                        )
-                        client = OllamaClient(config=cfg, http_client=http_client)
-                        sys_prompt = (
-                            "You are Go 81, a Sovereign Personal AI Agent running locally on the user's machine. "
-                            "You assist with workflow orchestration, coding, task automation, and secure local memory. "
-                            "Give a direct, helpful, and concise response."
-                        )
-                        chat_res = client.chat(
-                            messages=[
-                                {"role": "system", "content": sys_prompt},
-                                {"role": "user", "content": prompt},
-                            ],
-                            timeout=10.0,
-                        )
-                        if chat_res.content and chat_res.content.strip():
-                            content = chat_res.content.strip()
-                except Exception:
-                    pass
-        else:
+        if is_memory_query and not cited_ids:
+            if context.get("memory_available") is False:
+                content = "Memory subsystem is currently unavailable. No prior preferences or decisions could be retrieved."
+            else:
+                content = "I reviewed your saved memories, but found no relevant prior preferences, goals, or decisions matching your question."
+        elif cited_ids:
             sections = []
             if context.get("preferences"):
                 p_lines = [f"- {p['subject']}: {p['predicate']} is {p['object_value']}" for p in context["preferences"]]
@@ -236,15 +248,15 @@ async def dispatch_chat_message(req: ChatMessageRequest):
 
             # If live model inference is reachable, consume injected memory context in model chat
             planner_inst = get_planner()
-            if planner_inst and getattr(planner_inst, "ollama_endpoint", None) and cited_ids:
+            if planner_inst and getattr(planner_inst, "ollama_endpoint", None):
                 try:
-                    with httpx.Client(timeout=10.0) as http_client:
+                    with httpx.Client(timeout=30.0) as http_client:
                         from backend.ollama_client import OllamaClient, OllamaConfig
                         cfg = OllamaConfig(
                             base_url=planner_inst.ollama_endpoint,
                             chat_model=planner_inst.model,
-                            connect_timeout=2.0,
-                            request_timeout=10.0,
+                            connect_timeout=5.0,
+                            request_timeout=30.0,
                         )
                         client = OllamaClient(config=cfg, http_client=http_client)
                         sys_prompt = (
@@ -259,7 +271,7 @@ async def dispatch_chat_message(req: ChatMessageRequest):
                                 {"role": "user", "content": prompt},
                             ],
                             options={"temperature": 0.0},
-                            timeout=10.0,
+                            timeout=30.0,
                         )
                         if chat_res.content and chat_res.content.strip():
                             candidate = chat_res.content.strip()
@@ -268,8 +280,55 @@ async def dispatch_chat_message(req: ChatMessageRequest):
                                 if isinstance(val, str) and val.lower() in candidate.lower() and val not in candidate:
                                     candidate = re.sub(re.escape(val), val, candidate, flags=re.IGNORECASE)
                             content = candidate
-                except Exception:
-                    pass
+                except Exception as e:
+                    logger.warning(f"Ollama memory-assisted chat inference failed: {e}")
+        else:
+            # Ordinary conversational question with no relevant memories:
+            # Always invoke local Ollama model to generate assistant answer
+            content = ""
+            planner_inst = get_planner()
+            if planner_inst and getattr(planner_inst, "ollama_endpoint", None):
+                try:
+                    with httpx.Client(timeout=30.0) as http_client:
+                        from backend.ollama_client import OllamaClient, OllamaConfig
+                        cfg = OllamaConfig(
+                            base_url=planner_inst.ollama_endpoint,
+                            chat_model=planner_inst.model,
+                            connect_timeout=5.0,
+                            request_timeout=30.0,
+                        )
+                        client = OllamaClient(config=cfg, http_client=http_client)
+                        sys_prompt = (
+                            "You are Go 81, a Sovereign Personal AI Agent running locally on the user's machine. "
+                            "You assist with workflow orchestration, coding, task automation, and secure local memory. "
+                            "Give a direct, helpful, and concise response."
+                        )
+                        chat_res = client.chat(
+                            messages=[
+                                {"role": "system", "content": sys_prompt},
+                                {"role": "user", "content": prompt},
+                            ],
+                            timeout=30.0,
+                        )
+                        if chat_res.content and chat_res.content.strip():
+                            content = chat_res.content.strip()
+                except Exception as e:
+                    logger.warning(f"Ollama conversational chat inference failed: {e}")
+
+            # Honest conversational fallback if Ollama daemon is offline or did not return text
+            if not content:
+                lower_p = prompt.lower()
+                if any(id_phrase in lower_p for id_phrase in ["who are you", "what is your name", "state your name", "what do you do", "what does go 81 do"]):
+                    content = (
+                        "I am Go 81, a Sovereign Personal AI Agent running locally on your machine. "
+                        "I assist with autonomous workflow orchestration, coding, task automation, and secure local memory."
+                    )
+                else:
+                    content = (
+                        "I am currently operating in sovereign offline mode. "
+                        "Local inference on Ollama (http://127.0.0.1:11434) is currently unreachable. "
+                        "Please ensure the Ollama daemon is running to enable full conversational intelligence."
+                    )
 
         return ChatMessageResponse(
             id=f"msg-{int(time.time() * 1000)}",

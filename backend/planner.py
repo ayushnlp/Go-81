@@ -110,7 +110,8 @@ def is_conversational_query(query: str) -> bool:
         "what", "who", "why", "how", "when", "where", "which", "is ", "are ",
         "can you", "could you", "tell me", "explain", "describe", "summarize",
         "list my", "show my", "what are my", "what is my", "what was my",
-        "do i have", "do you know", "hello", "hey", "help", "thanks", "thank you"
+        "do i have", "do you know", "hello", "hey", "help", "thanks", "thank you",
+        "state ", "introduce", "identify", "give me", "briefly", "recommend", "how does"
     ]
     for pref in question_prefixes:
         if q.startswith(pref) or f" {pref} " in q:
