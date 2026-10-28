@@ -41,6 +41,7 @@ class DAGStep(BaseModel):
     status: str = Field(default="PENDING", description="PENDING, RUNNING, PAUSED_APPROVAL, COMPLETED, FAILED")
     output: Optional[Any] = Field(default=None)
     approval_id: Optional[str] = Field(default=None)
+    approval_token: Optional[str] = Field(default=None)
 
     def __getitem__(self, item: str) -> Any:
         if item == "id":

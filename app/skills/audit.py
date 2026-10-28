@@ -17,17 +17,20 @@ logger = logging.getLogger(__name__)
 
 # Sensitive token sanitization patterns
 SECRET_SCRUB_PATTERNS = [
-    re.compile(r"(?i)(api[_-]?key|secret|password|token|bearer|encryption[_-]?key)\s*[:=]\s*['\"]?([A-Za-z0-9_\-\.]{8,})['\"]?"),
-    re.compile(r"tok-[a-f0-9]{32}"),
-    re.compile(r"apr-[a-f0-9]{12}"),
-    re.compile(r"(?i)bearer\s+[A-Za-z0-9_\-\.]{12,}"),
+    re.compile(r"(?i)\b(api[_-]?key|secret|password|token|approval[_-]?token|auth[_-]?token|access[_-]?token|refresh[_-]?token|bearer|encryption[_-]?key|private[_-]?key)\b\s*[:=]\s*['\"]?([^\s,;'\"]{4,})['\"]?"),
+    re.compile(r"\btok-[a-zA-Z0-9_\-]{8,}\b"),
+    re.compile(r"\bapr-[a-zA-Z0-9_\-]{8,}\b"),
+    re.compile(r"\bpending-[a-zA-Z0-9_\-]{8,}\b"),
+    re.compile(r"(?i)\bbearer\s+([A-Za-z0-9_\-\.]{8,})"),
 ]
 
 
 def _sub_cred(match):
     groups = match.groups()
-    if groups:
-        return f"{groups[0]}=[REDACTED]"
+    if groups and groups[0]:
+        if len(groups) >= 2 and groups[1]:
+            return f"{groups[0]}=[REDACTED]"
+        return "[REDACTED]"
     return "[REDACTED]"
 
 
@@ -39,6 +42,31 @@ def sanitize_audit_text(text: Optional[str]) -> Optional[str]:
     for pattern in SECRET_SCRUB_PATTERNS:
         sanitized = pattern.sub(_sub_cred, sanitized)
     return sanitized
+
+
+SENSITIVE_KEY_PATTERN = re.compile(
+    r"\b(api[_-]?key|secret|password|token|bearer|credentials?|private[_-]?key|auth|encryption[_-]?key)\b"
+    r"|(approval[_-]?token|auth[_-]?token|access[_-]?token|refresh[_-]?token|api[_-]?key|secret[_-]?key)",
+    re.IGNORECASE,
+)
+
+
+def sanitize_audit_structure(data: Any) -> Any:
+    """Recursively sanitizes dictionary/list structures to redact sensitive tokens and credentials."""
+    if isinstance(data, str):
+        return sanitize_audit_text(data)
+    elif isinstance(data, dict):
+        sanitized_dict = {}
+        for k, v in data.items():
+            k_str = str(k).lower()
+            if SENSITIVE_KEY_PATTERN.search(k_str):
+                sanitized_dict[k] = "[REDACTED]"
+            else:
+                sanitized_dict[k] = sanitize_audit_structure(v)
+        return sanitized_dict
+    elif isinstance(data, (list, tuple)):
+        return [sanitize_audit_structure(item) for item in data]
+    return data
 
 
 class SkillAuditLogger:
@@ -110,12 +138,14 @@ class SkillAuditLogger:
         """
         sanitized_error = sanitize_audit_text(error_message)
         sanitized_token = "[REDACTED_APPROVAL_TOKEN]" if approval_token else None
+        sanitized_metadata = sanitize_audit_structure(metadata or {})
+        sanitized_action = sanitize_audit_text(action) or action
 
         record = SkillAuditRecord(
             audit_id=f"aud-{uuid.uuid4().hex[:12]}",
             skill_id=skill_id,
             version=version,
-            action=action,
+            action=sanitized_action,
             correlation_id=correlation_id,
             user_id=user_id or "default_user",
             capabilities=capabilities,
@@ -126,7 +156,7 @@ class SkillAuditLogger:
             duration_ms=duration_ms,
             error_message=sanitized_error,
             created_at=utc_now_iso(),
-            metadata=metadata or {},
+            metadata=sanitized_metadata,
         )
 
         self._in_memory_records.append(record)

@@ -112,6 +112,8 @@ class ExecutionContext(BaseModel):
     action_hash: Optional[str] = None
     caller_identity: str = Field(default="agent")
     environment: Dict[str, str] = Field(default_factory=dict)
+    granted_capabilities: Optional[List[str]] = Field(default=None, description="Permitted capabilities under default-deny")
+    is_cancelled: bool = Field(default=False, description="Flag indicating if execution was cancelled")
 
 
 class ExecutionResult(BaseModel):
@@ -171,3 +173,15 @@ class ProposeSkillResponse(BaseModel):
     approval_id: Optional[str] = None
     allowed: bool
     reason: str
+
+
+class ResolveApprovalRequest(BaseModel):
+    approved: bool = True
+    reason: Optional[str] = None
+
+
+class ResolveApprovalResponse(BaseModel):
+    approval_id: str
+    approved: bool
+    token: Optional[str] = None
+    status: str

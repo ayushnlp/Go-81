@@ -99,6 +99,28 @@ class SecurityPermissionGateway:
                 risk_level=skill.risk_level,
             )
 
+        # 1b. Enforce Capability Default-Deny Policy
+        valid_system_caps = {c.value for c in Capability}
+        for cap in skill.required_capabilities:
+            if cap not in valid_system_caps:
+                return AuthorizationDecision(
+                    allowed=False,
+                    reason=f"Capability '{cap}' is not recognized or permitted under system default-deny policy.",
+                    action_hash=None,
+                    risk_level=SkillRiskLevel.CRITICAL,
+                )
+
+        if context.granted_capabilities is not None:
+            granted_set = set(context.granted_capabilities)
+            for cap in skill.required_capabilities:
+                if cap not in granted_set:
+                    return AuthorizationDecision(
+                        allowed=False,
+                        reason=f"Required capability '{cap}' is not granted in the execution context under default-deny policy.",
+                        action_hash=None,
+                        risk_level=SkillRiskLevel.HIGH,
+                    )
+
         # 2. Determine applicable scope and canonical action hash
         scope: Dict[str, Any] = {}
         if skill.filesystem_scope:
@@ -220,31 +242,35 @@ class SecurityPermissionGateway:
         now_iso = utc_now_iso()
         expires_at = time.time() + ttl_seconds
 
-        with self.db.transaction() as conn:
-            conn.execute(
-                """
-                INSERT OR REPLACE INTO approval_records (
-                    approval_id, token, task_id, action, resource,
-                    param_hash, parameters, status, risk_level, notes,
-                    created_at, expires_at, metadata
-                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?);
-                """,
-                (
-                    approval_id,
-                    token,
-                    task_id,
-                    skill_id,
-                    skill_id,
-                    action_hash,
-                    json.dumps(parameters, sort_keys=True),
-                    "APPROVED",
-                    skill.risk_level.value.upper(),
-                    notes,
-                    now_iso,
-                    expires_at,
-                    json.dumps({"version": skill.version}),
-                ),
-            )
+        if self.db:
+            try:
+                with self.db.transaction() as conn:
+                    conn.execute(
+                        """
+                        INSERT OR REPLACE INTO approval_records (
+                            approval_id, token, task_id, action, resource,
+                            param_hash, parameters, status, risk_level, notes,
+                            created_at, expires_at, metadata
+                        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?);
+                        """,
+                        (
+                            approval_id,
+                            token,
+                            task_id,
+                            skill_id,
+                            skill_id,
+                            action_hash,
+                            json.dumps(parameters, sort_keys=True),
+                            "APPROVED",
+                            skill.risk_level.value.upper(),
+                            notes,
+                            now_iso,
+                            expires_at,
+                            json.dumps({"version": skill.version}),
+                        ),
+                    )
+            except Exception as e:
+                logger.warning(f"Failed to record approval token in database: {e}")
 
         self._in_memory_approvals[token] = {
             "approval_id": approval_id,
@@ -309,6 +335,68 @@ class SecurityPermissionGateway:
                     (rejection_reason or "Rejected by user", now_iso, approval_id),
                 )
                 return False, None
+
+    def get_approval_record(self, approval_id: str) -> Optional[Dict[str, Any]]:
+        """Retrieves an approval record by ID."""
+        if not self.db:
+            return None
+        try:
+            conn = self.db.get_connection()
+            try:
+                cursor = conn.cursor()
+                cursor.execute(
+                    "SELECT approval_id, token, task_id, action, resource, param_hash, parameters, status, risk_level, notes, created_at, expires_at FROM approval_records WHERE approval_id = ?;",
+                    (approval_id,),
+                )
+                row = cursor.fetchone()
+                if not row:
+                    return None
+                return dict(row)
+            finally:
+                conn.close()
+        except Exception as e:
+            logger.warning(f"Failed to query approval record {approval_id}: {e}")
+            return None
+
+    def list_pending_approvals(self) -> List[Dict[str, Any]]:
+        """Retrieves all pending approvals awaiting human authorization."""
+        if not self.db:
+            return []
+        try:
+            conn = self.db.get_connection()
+            try:
+                cursor = conn.cursor()
+                cursor.execute(
+                    """
+                    SELECT approval_id, task_id, action, resource, param_hash,
+                           parameters, status, risk_level, notes, created_at, expires_at
+                    FROM approval_records
+                    WHERE status = 'PENDING'
+                    ORDER BY created_at DESC;
+                    """
+                )
+                rows = cursor.fetchall()
+                results = []
+                for row in rows:
+                    results.append({
+                        "approval_id": row["approval_id"],
+                        "task_id": row["task_id"],
+                        "action": row["action"],
+                        "resource": row["resource"],
+                        "param_hash": row["param_hash"],
+                        "parameters": json.loads(row["parameters"]) if row["parameters"] else {},
+                        "status": row["status"],
+                        "risk_level": row["risk_level"],
+                        "notes": row["notes"],
+                        "created_at": row["created_at"],
+                        "expires_at": row["expires_at"],
+                    })
+                return results
+            finally:
+                conn.close()
+        except Exception as e:
+            logger.warning(f"Failed to query pending approvals from database: {e}")
+            return []
 
     def _create_pending_approval(
         self,

@@ -457,6 +457,16 @@ def list_approvals():
     """Lists all tasks currently paused awaiting human authorization."""
     task_orchestrator = get_orchestrator()
     items = task_orchestrator.list_pending_approvals()
+    try:
+        from app.skills.routes import get_gateway
+        gateway = get_gateway()
+        gw_items = gateway.list_pending_approvals()
+        seen = {item.get("approval_id") for item in items}
+        for gw in gw_items:
+            if gw.get("approval_id") not in seen:
+                items.append(gw)
+    except Exception:
+        pass
     for item in items:
         item.setdefault("status", "pending")
         item.setdefault("id", item.get("approval_id"))
@@ -472,6 +482,7 @@ async def submit_approval_decision(approval_id: str, req: ApprovalDecisionReques
     """
     Milestone 6 Requirement:
     Successfully resumes paused DAG branches when approved.
+    Also resolves standalone SecurityPermissionGateway approvals with complete validation.
     """
     task_orchestrator = get_orchestrator()
     try:
@@ -481,8 +492,29 @@ async def submit_approval_decision(approval_id: str, req: ApprovalDecisionReques
             notes=req.notes,
         )
         return result
-    except KeyError as e:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=str(e))
+    except KeyError:
+        from app.skills.routes import get_gateway
+        import time
+        gateway = get_gateway()
+        record = gateway.get_approval_record(approval_id)
+        if not record:
+            raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=f"Approval request '{approval_id}' not found.")
+        
+        current_status = record.get("status")
+        if current_status != "PENDING":
+            raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail=f"Approval request '{approval_id}' is already {current_status}.")
+
+        if record.get("expires_at", 0) and time.time() > float(record["expires_at"]):
+            raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=f"Approval request '{approval_id}' has expired.")
+
+        approved = req.decision.lower() in ("approved", "true", "yes", "1")
+        ok, token = gateway.resolve_pending_approval(approval_id, approved=approved, rejection_reason=req.notes)
+        return {
+            "success": True,
+            "approval_id": approval_id,
+            "status": "approved" if approved else "rejected",
+            "token": token,
+        }
 
 
 @app.post("/api/permissions/approve", tags=["Approval Gatekeeper"])
@@ -506,8 +538,29 @@ async def approve_permission_alias(req: Dict[str, Any]):
             notes=notes,
         )
         return result
-    except KeyError as e:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=str(e))
+    except KeyError:
+        from app.skills.routes import get_gateway
+        import time
+        gateway = get_gateway()
+        record = gateway.get_approval_record(approval_id)
+        if not record:
+            raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=f"Approval request '{approval_id}' not found.")
+
+        current_status = record.get("status")
+        if current_status != "PENDING":
+            raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail=f"Approval request '{approval_id}' is already {current_status}.")
+
+        if record.get("expires_at", 0) and time.time() > float(record["expires_at"]):
+            raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=f"Approval request '{approval_id}' has expired.")
+
+        approved = str(decision).lower() in ("approved", "true", "yes", "1")
+        ok, token = gateway.resolve_pending_approval(approval_id, approved=approved, rejection_reason=notes)
+        return {
+            "success": True,
+            "approval_id": approval_id,
+            "status": "approved" if approved else "rejected",
+            "token": token,
+        }
 
 
 # ============================================================================

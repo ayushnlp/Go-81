@@ -22,6 +22,8 @@ from app.skills.models import (
     SkillAuditRecord,
     SkillDefinition,
     SkillRiskLevel,
+    ResolveApprovalRequest,
+    ResolveApprovalResponse,
 )
 from app.skills.registry import (
     DuplicateSkillError,
@@ -59,12 +61,10 @@ class SkillContainer:
 
 
 def get_sandbox() -> SkillExecutionSandbox:
-    if SkillContainer.sandbox is None:
-        from app.api.routes import SubsystemContainer
-        db = SubsystemContainer.db
-        if db is None:
-            db = DatabaseManager()
-        SkillContainer.initialize(db)
+    from app.api.routes import SubsystemContainer
+    active_db = SubsystemContainer.db if SubsystemContainer.db is not None else DatabaseManager()
+    if SkillContainer.sandbox is None or (SkillContainer.gateway and SkillContainer.gateway.db is not active_db):
+        SkillContainer.initialize(active_db)
     return SkillContainer.sandbox
 
 
@@ -202,3 +202,62 @@ def get_audit_records(
     """Retrieves recent structured audit records for skill execution and authorization."""
     audit_logger = get_audit_logger()
     return audit_logger.get_recent_records(limit=limit, skill_id=skill_id)
+
+
+# ----------------------------------------------------------------------------
+# 4. Human Approval Management
+# ----------------------------------------------------------------------------
+
+@router.get("/approvals/pending", response_model=List[Dict[str, Any]])
+def list_pending_approvals() -> List[Dict[str, Any]]:
+    """Retrieves all pending human approval requests for skills."""
+    gateway = get_gateway()
+    return gateway.list_pending_approvals()
+
+
+@router.post("/approvals/{approval_id}/resolve", response_model=ResolveApprovalResponse)
+def resolve_skill_approval(
+    approval_id: str,
+    req: ResolveApprovalRequest,
+) -> ResolveApprovalResponse:
+    """
+    Human-in-the-loop endpoint: resolves a pending approval ID.
+    If approved, generates and returns a single-use token.
+    Enforces validation: 404 if not found, 409 if already resolved, 400 if expired.
+    """
+    import time
+    gateway = get_gateway()
+    record = gateway.get_approval_record(approval_id)
+    if not record:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail=f"Approval request '{approval_id}' not found.",
+        )
+
+    current_status = record.get("status")
+    if current_status != "PENDING":
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT,
+            detail=f"Approval request '{approval_id}' has already been resolved with status '{current_status}'.",
+        )
+
+    expires_at = record.get("expires_at", 0)
+    if expires_at and time.time() > float(expires_at):
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=f"Approval request '{approval_id}' has expired.",
+        )
+
+    ok, token = gateway.resolve_pending_approval(
+        approval_id=approval_id,
+        approved=req.approved,
+        rejection_reason=req.reason,
+    )
+
+    final_status = "APPROVED" if req.approved else "REJECTED"
+    return ResolveApprovalResponse(
+        approval_id=approval_id,
+        approved=req.approved,
+        token=token,
+        status=final_status,
+    )

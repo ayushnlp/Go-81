@@ -405,20 +405,17 @@ class TaskOrchestrator:
             from app.skills.routes import get_registry, get_sandbox
             from app.skills.models import ExecutionContext
             registry = get_registry()
-            if step.skill_name in registry._skills:
-                sandbox = get_sandbox()
-                ctx = ExecutionContext(
-                    task_id=task.task_id,
-                    step_id=step.step_id,
-                    project_root=".",
-                    approval_token=getattr(step, "approval_token", None),
-                )
-                res = await sandbox.execute(step.skill_name, step.parameters or {}, ctx)
-                if not res.success:
-                    raise RuntimeError(f"Skill execution failed: {res.error}")
-                step.output = str(res.output)
-            else:
-                step.output = f"Executed {step.skill_name} successfully."
+            sandbox = get_sandbox()
+            ctx = ExecutionContext(
+                task_id=task.task_id,
+                step_id=step.step_id,
+                project_root=".",
+                approval_token=getattr(step, "approval_token", None),
+            )
+            res = await sandbox.execute(step.skill_name, step.parameters or {}, ctx)
+            if not res.success:
+                raise RuntimeError(f"Skill execution failed: {res.error}")
+            step.output = str(res.output)
             step.status = "COMPLETED"
 
             await self.broadcast_event(
@@ -431,6 +428,18 @@ class TaskOrchestrator:
                     "output": step.output,
                 },
             )
+        except asyncio.CancelledError:
+            logger.warning(f"Step {step.step_id} execution was cancelled.")
+            step.status = "CANCELLED"
+            step.output = "Execution was cancelled."
+            task.status = "CANCELLED"
+            self._save_checkpoint(task)
+            await self.broadcast_event(
+                task.task_id,
+                "step_cancelled",
+                {"task_id": task.task_id, "step_id": step.step_id, "status": "CANCELLED"},
+            )
+            raise
         except Exception as e:
             logger.error(f"Error executing step {step.step_id} ({step.skill_name}): {e}", exc_info=True)
             step.status = "FAILED"
@@ -497,7 +506,18 @@ class TaskOrchestrator:
                 },
             )
 
-            # Resume paused step
+            # Resume paused step with genuine permission token and sandboxed execution
+            from app.skills.routes import get_gateway, get_registry
+            sec_gateway = get_gateway()
+            registry = get_registry()
+            if target_step.skill_name in registry._skills:
+                _, tok = sec_gateway.create_approval_token(
+                    skill_id=target_step.skill_name,
+                    parameters=target_step.parameters or {},
+                    notes=f"Granted via orchestrator approval: {notes}",
+                )
+                target_step.approval_token = tok
+
             target_step.status = "RUNNING"
             await self.broadcast_event(
                 task_id,
@@ -505,18 +525,12 @@ class TaskOrchestrator:
                 {"task_id": task_id, "step_id": step_id, "status": "RUNNING"},
             )
 
-            target_step.output = f"Authorized execution of {target_step.skill_name} completed."
-            target_step.status = "COMPLETED"
+            await self._execute_step(task, target_step)
 
-            await self.broadcast_event(
-                task_id,
-                "step_completed",
-                {"task_id": task_id, "step_id": step_id, "status": "COMPLETED", "output": target_step.output},
-            )
-
-            # Advance remaining DAG steps
-            task.status = "RUNNING"
-            await self._advance_dag(task)
+            if target_step.status == "COMPLETED":
+                # Advance remaining DAG steps
+                task.status = "RUNNING"
+                await self._advance_dag(task)
 
             return {
                 "success": True,
@@ -544,6 +558,31 @@ class TaskOrchestrator:
                 "step_id": step_id,
                 "task_status": "FAILED",
             }
+
+    async def cancel_task(self, task_id: str, reason: str = "Task cancelled by user") -> Dict[str, Any]:
+        """Cancels an active or paused task DAG."""
+        task = self.get_task(task_id)
+        if not task:
+            raise KeyError(f"Task '{task_id}' not found.")
+
+        task.status = "CANCELLED"
+        for step in task.steps:
+            if step.status in ("RUNNING", "PENDING", "PAUSED_APPROVAL"):
+                step.status = "CANCELLED"
+                step.output = f"Execution cancelled: {reason}"
+
+        self._save_checkpoint(task)
+        await self.broadcast_event(
+            task_id,
+            "task_cancelled",
+            {"task_id": task_id, "status": "CANCELLED", "reason": reason},
+        )
+        return {
+            "success": True,
+            "task_id": task_id,
+            "status": "CANCELLED",
+            "reason": reason,
+        }
 
     def _save_checkpoint(self, task: TaskDAG) -> None:
         """Persists task checkpoint using TaskRecoveryManager if initialized."""

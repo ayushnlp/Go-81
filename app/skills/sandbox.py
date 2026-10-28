@@ -184,6 +184,40 @@ class SkillExecutionSandbox:
                 status="BLOCKED",
             )
 
+        # Pre-execution cancellation check
+        if ctx.is_cancelled:
+            return self._fail_with_audit(
+                skill_id=skill.id,
+                version=skill.version,
+                action=skill.id,
+                policy_outcome="ALLOWED",
+                capabilities=skill.required_capabilities,
+                error="Execution was cancelled prior to start.",
+                context=ctx,
+                start_time=start_time,
+                status="CANCELLED",
+                action_hash=auth_decision.action_hash,
+            )
+
+        # Enforce Network Scope destination whitelist before execution
+        if skill.network_scope and "url" in validated_params:
+            from app.skills.builtins import validate_network_scope
+            try:
+                validate_network_scope(str(validated_params["url"]), skill.network_scope)
+            except PermissionError as pe:
+                return self._fail_with_audit(
+                    skill_id=skill.id,
+                    version=skill.version,
+                    action=skill.id,
+                    policy_outcome="DENIED",
+                    capabilities=skill.required_capabilities,
+                    error=str(pe),
+                    context=ctx,
+                    start_time=start_time,
+                    status="BLOCKED",
+                    action_hash=auth_decision.action_hash,
+                )
+
         # 5. Execute handler with timeout and resource limits
         timeout_sec = skill.resource_limits.timeout_seconds
         max_bytes = skill.resource_limits.max_output_bytes
@@ -192,17 +226,22 @@ class SkillExecutionSandbox:
         ctx.environment = build_sanitized_environment()
 
         try:
-            # Run in worker thread to prevent blocking asyncio event loop
             loop = asyncio.get_running_loop()
-            task_fn = functools.partial(handler, validated_params, ctx)
-            output = await asyncio.wait_for(
-                loop.run_in_executor(None, task_fn),
-                timeout=timeout_sec,
-            )
+            if asyncio.iscoroutinefunction(handler):
+                output = await asyncio.wait_for(
+                    handler(validated_params, ctx),
+                    timeout=timeout_sec,
+                )
+            else:
+                task_fn = functools.partial(handler, validated_params, ctx)
+                output = await asyncio.wait_for(
+                    loop.run_in_executor(None, task_fn),
+                    timeout=timeout_sec,
+                )
         except asyncio.TimeoutError:
             duration_ms = (time.perf_counter() - start_time) * 1000.0
             error_msg = f"Execution timed out after {timeout_sec}s"
-            self.audit_logger.log_event(
+            audit_rec = self.audit_logger.log_event(
                 skill_id=skill.id,
                 version=skill.version,
                 action=skill.id,
@@ -220,11 +259,35 @@ class SkillExecutionSandbox:
                 success=False,
                 error=error_msg,
                 duration_ms=duration_ms,
+                audit_id=audit_rec.audit_id,
+            )
+        except asyncio.CancelledError:
+            duration_ms = (time.perf_counter() - start_time) * 1000.0
+            error_msg = "Execution was cancelled"
+            audit_rec = self.audit_logger.log_event(
+                skill_id=skill.id,
+                version=skill.version,
+                action=skill.id,
+                policy_outcome="ALLOWED",
+                capabilities=skill.required_capabilities,
+                correlation_id=ctx.correlation_id,
+                user_id=ctx.user_id,
+                action_hash=auth_decision.action_hash,
+                approval_token=ctx.approval_token,
+                execution_status="CANCELLED",
+                duration_ms=duration_ms,
+                error_message=error_msg,
+            )
+            return ExecutionResult(
+                success=False,
+                error=error_msg,
+                duration_ms=duration_ms,
+                audit_id=audit_rec.audit_id,
             )
         except Exception as e:
             duration_ms = (time.perf_counter() - start_time) * 1000.0
             error_msg = f"{type(e).__name__}: {str(e)}"
-            self.audit_logger.log_event(
+            audit_rec = self.audit_logger.log_event(
                 skill_id=skill.id,
                 version=skill.version,
                 action=skill.id,
@@ -242,6 +305,7 @@ class SkillExecutionSandbox:
                 success=False,
                 error=error_msg,
                 duration_ms=duration_ms,
+                audit_id=audit_rec.audit_id,
             )
 
         # 6. Enforce Bounded Output Size
