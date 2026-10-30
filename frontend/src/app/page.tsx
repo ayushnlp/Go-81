@@ -1,14 +1,23 @@
 'use client';
 
 import React, { useState, useEffect, useCallback } from 'react';
+import { Sun, Moon } from 'lucide-react';
 import { TopNav } from '@/components/shell/TopNav';
 import { NavRail, NavDestination } from '@/components/shell/NavRail';
-import { ContextualSidebar } from '@/components/sidebar/ContextualSidebar';
-import { CentralWorkspace } from '@/components/workspace/CentralWorkspace';
+import { CentralWorkspace, ComposerMode } from '@/components/workspace/CentralWorkspace';
 import { AgentCompanion } from '@/components/companion/AgentCompanion';
 import { DeveloperDock } from '@/components/dock/DeveloperDock';
 import { CommandPalette } from '@/components/shell/CommandPalette';
 import { ApprovalModal } from '@/components/tasks/ApprovalModal';
+import { ExplorerWorkspace } from '@/components/pages/ExplorerWorkspace';
+import { SearchWorkspace } from '@/components/pages/SearchWorkspace';
+import { GitChangesWorkspace } from '@/components/pages/GitChangesWorkspace';
+import { EnvironmentWorkspace } from '@/components/pages/EnvironmentWorkspace';
+import { MemoryWorkspace } from '@/components/pages/MemoryWorkspace';
+import { SkillsWorkspace } from '@/components/pages/SkillsWorkspace';
+import { ActivityWorkspace } from '@/components/pages/ActivityWorkspace';
+import { ProblemsWorkspace } from '@/components/pages/ProblemsWorkspace';
+import { SettingsWorkspace } from '@/components/pages/SettingsWorkspace';
 import { api } from '@/lib/api/client';
 import {
   AudienceMode,
@@ -20,6 +29,19 @@ import {
   AgentRuntimeStatus,
   ModelHealth,
 } from '@/lib/api/types';
+
+const pageTitles: Record<NavDestination, string> = {
+  home: 'Home',
+  explorer: 'Explorer',
+  search: 'Global Search',
+  git: 'Git & Changes',
+  activity: 'Activity History',
+  problems: 'Problems & Diagnostics',
+  environment: 'System Environment',
+  memory: 'Memory Vault',
+  skills: 'Skills Forge',
+  settings: 'Settings',
+};
 
 /**
  * Infer intent mode based on prompt text
@@ -56,7 +78,6 @@ function inferIntent(text: string): 'chat' | 'task' | 'memory' {
 export default function CommandCenterPage() {
   // Navigation & Layout States
   const [activeNav, setActiveNav] = useState<NavDestination>('home');
-  const [isSidebarOpen, setIsSidebarOpen] = useState(true);
   const [isCompanionOpen, setIsCompanionOpen] = useState(false);
   const [isDockOpen, setIsDockOpen] = useState(false);
   const [isCommandPaletteOpen, setIsCommandPaletteOpen] = useState(false);
@@ -75,12 +96,12 @@ export default function CommandCenterPage() {
   const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [inputValue, setInputValue] = useState('');
   const [isSending, setIsSending] = useState(false);
+  const [regeneratingId, setRegeneratingId] = useState<string | null>(null);
   const [expandedTraceId, setExpandedTraceId] = useState<string | null>(null);
 
   // Tasks & Approvals
   const [tasks, setTasks] = useState<TaskGraph[]>([]);
   const [activeTask, setActiveTask] = useState<TaskGraph | null>(null);
-  const [isLoadingTasks, setIsLoadingTasks] = useState(false);
   const [pendingApprovals, setPendingApprovals] = useState<ApprovalRequest[]>([]);
   const [activeApproval, setActiveApproval] = useState<ApprovalRequest | null>(null);
 
@@ -116,14 +137,13 @@ export default function CommandCenterPage() {
         setMode(savedMode);
       }
       const savedTheme = localStorage.getItem('go81_theme') as AppearancePreset | null;
-      if (savedTheme && ['light', 'dark', 'oled-light', 'oled-dark'].includes(savedTheme)) {
-        setTheme(savedTheme);
-        document.documentElement.setAttribute('data-theme', savedTheme);
-      } else {
-        const defaultTheme: AppearancePreset = 'dark';
-        setTheme(defaultTheme);
-        document.documentElement.setAttribute('data-theme', defaultTheme);
-      }
+      const activeTheme: AppearancePreset =
+        savedTheme && ['light', 'dark', 'oled-light', 'oled-dark'].includes(savedTheme)
+          ? savedTheme
+          : 'dark';
+      setTheme(activeTheme);
+      document.documentElement.setAttribute('data-theme', activeTheme);
+      document.documentElement.classList.toggle('dark', activeTheme === 'dark' || activeTheme === 'oled-dark');
     } catch {
       // LocalStorage unavailable
     }
@@ -151,6 +171,7 @@ export default function CommandCenterPage() {
       theme === 'dark' || theme === 'oled-dark' ? 'light' : 'dark';
     setTheme(nextTheme);
     document.documentElement.setAttribute('data-theme', nextTheme);
+    document.documentElement.classList.toggle('dark', nextTheme === 'dark');
     try {
       localStorage.setItem('go81_theme', nextTheme);
     } catch {
@@ -175,8 +196,11 @@ export default function CommandCenterPage() {
     setInputValue('');
   };
 
-  // Handle prompt submit to backend
-  const handleSubmitPrompt = async (overridePrompt?: string) => {
+  // Handle prompt submit to backend with three-mode awareness
+  const handleSubmitPrompt = async (
+    overridePrompt?: string,
+    overrideMode?: ComposerMode
+  ) => {
     const promptText = (overridePrompt !== undefined ? overridePrompt : inputValue).trim();
     if (!promptText || isSending) return;
 
@@ -192,10 +216,10 @@ export default function CommandCenterPage() {
 
     setMessages((prev) => [...prev, userMessage]);
 
-    const intent = inferIntent(promptText);
+    const effectiveMode: 'chat' | 'task' | 'memory' = overrideMode || inferIntent(promptText);
 
     try {
-      if (intent === 'task' && isBackendOnline) {
+      if (effectiveMode === 'task' && isBackendOnline) {
         // Submit as autonomous task DAG to backend
         const taskRes = await api.createTask(promptText);
         if (taskRes.data) {
@@ -204,12 +228,12 @@ export default function CommandCenterPage() {
         }
       }
 
-      // Send to local agent LLM chat route
-      const agentRes = await api.sendPrompt(promptText, intent);
+      // Send to local agent LLM chat route with explicit mode
+      const agentRes = await api.sendPrompt(promptText, effectiveMode);
       setMessages((prev) => [...prev, agentRes.data]);
 
       // Refresh tasks and approvals if task was affected
-      if (intent === 'task') {
+      if (effectiveMode === 'task') {
         const refreshedTasks = await api.getTasks();
         setTasks(refreshedTasks.data || []);
       }
@@ -226,6 +250,68 @@ export default function CommandCenterPage() {
     }
   };
 
+  // Handle safe response regeneration (never repeats external side-effects)
+  const handleRegenerateResponse = async (assistantMessageId: string) => {
+    if (regeneratingId || isSending) return;
+
+    const msgIdx = messages.findIndex((m) => m.id === assistantMessageId);
+    if (msgIdx === -1) return;
+    const targetMsg = messages[msgIdx];
+
+    // Find preceding user prompt
+    let precedingUserPrompt: string | null = null;
+    for (let i = msgIdx - 1; i >= 0; i--) {
+      if (messages[i].role === 'user') {
+        precedingUserPrompt = messages[i].content;
+        break;
+      }
+    }
+
+    if (!precedingUserPrompt) return;
+
+    setRegeneratingId(assistantMessageId);
+
+    try {
+      // CRITICAL SAFETY REQUIREMENT:
+      // Never repeat external side effects (file-writes, shell commands).
+      // If the answer originated from a task execution or proposal, generate only the explanatory response
+      // using mode='chat' via local Ollama.
+      const isTaskOrigin = Boolean(targetMsg.relatedTaskId || targetMsg.actionProposal);
+      const promptToSend = isTaskOrigin
+        ? `Provide an updated explanation and summary for the completed task: ${precedingUserPrompt}`
+        : precedingUserPrompt;
+
+      const agentRes = await api.sendPrompt(promptToSend, 'chat');
+
+      setMessages((prev) =>
+        prev.map((m) =>
+          m.id === assistantMessageId
+            ? {
+                ...m,
+                content: agentRes.data.content,
+                thoughtTrace: agentRes.data.thoughtTrace || m.thoughtTrace,
+                timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
+              }
+            : m
+        )
+      );
+    } catch (err: unknown) {
+      const errText = err instanceof Error ? err.message : 'Regeneration failed.';
+      setMessages((prev) =>
+        prev.map((m) =>
+          m.id === assistantMessageId
+            ? {
+                ...m,
+                content: `Regeneration failed: ${errText}`,
+              }
+            : m
+        )
+      );
+    } finally {
+      setRegeneratingId(null);
+    }
+  };
+
   // Resolve approval decision
   const handleResolveApproval = async (
     requestId: string,
@@ -239,106 +325,162 @@ export default function CommandCenterPage() {
 
   return (
     <div className="flex flex-col h-screen w-screen overflow-hidden bg-[var(--bg-canvas)] text-[var(--text-primary)]">
-      {/* 1. Global Top Navigation Bar */}
-      <TopNav
-        mode={mode}
-        onModeChange={handleModeChange}
-        theme={theme}
-        onThemeToggle={handleToggleTheme}
-        isBackendOnline={isBackendOnline}
-        modelHealth={modelHealth}
-        runtimeStatus={runtimeStatus}
-        isChecking={isCheckingBackend}
-        onRefreshHealth={probeHealth}
-        onOpenCommandPalette={() => setIsCommandPaletteOpen(true)}
-        isCompanionOpen={isCompanionOpen}
-        onToggleCompanion={() => setIsCompanionOpen((prev) => !prev)}
-        isDockOpen={isDockOpen}
-        onToggleDock={() => setIsDockOpen((prev) => !prev)}
-      />
+      {/* 1. Header: TopNav for Home, or Centered Page Title + Theme Toggle for non-home */}
+      {activeNav === 'home' ? (
+        <TopNav
+          mode={mode}
+          onModeChange={handleModeChange}
+          theme={theme}
+          onThemeToggle={handleToggleTheme}
+          isBackendOnline={isBackendOnline}
+          modelHealth={modelHealth}
+          runtimeStatus={runtimeStatus}
+          isChecking={isCheckingBackend}
+          onRefreshHealth={probeHealth}
+          onOpenCommandPalette={() => setIsCommandPaletteOpen(true)}
+          isCompanionOpen={isCompanionOpen}
+          onToggleCompanion={() => setIsCompanionOpen((prev) => !prev)}
+          isDockOpen={isDockOpen}
+          onToggleDock={() => setIsDockOpen((prev) => !prev)}
+        />
+      ) : (
+        <header className="relative h-12 w-full border-b border-[var(--border-subtle)] bg-[var(--bg-surface)] px-4 flex items-center justify-between select-none z-30 shrink-0">
+          <div className="w-8" />
+          <div className="absolute inset-x-0 flex items-center justify-center pointer-events-none">
+            <h1 className="text-sm font-semibold text-[var(--text-primary)] tracking-tight">
+              {pageTitles[activeNav]}
+            </h1>
+          </div>
+          <div className="flex items-center space-x-2 z-10">
+            <button
+              type="button"
+              onClick={handleToggleTheme}
+              aria-label={theme === 'dark' || theme === 'oled-dark' ? 'Switch to light theme' : 'Switch to dark theme'}
+              title={theme === 'dark' || theme === 'oled-dark' ? 'Switch to light theme' : 'Switch to dark theme'}
+              className="p-1.5 text-[var(--text-muted)] hover:text-[var(--text-primary)] transition-colors cursor-pointer flex items-center justify-center focus:outline-none"
+            >
+              {theme === 'dark' || theme === 'oled-dark' ? (
+                <Moon className="w-4 h-4 text-[var(--text-secondary)] hover:text-[var(--text-primary)] transition-colors" />
+              ) : (
+                <Sun className="w-4 h-4 text-amber-500 hover:text-amber-600 transition-colors" />
+              )}
+            </button>
+          </div>
+        </header>
+      )}
 
-      {/* 2. Main Middle Workspace Area */}
+      {/* 2. Main Middle Workspace Area with Persistent NavRail */}
       <div className="flex-1 flex overflow-hidden relative">
-        {/* Navigation Rail */}
+        {/* Navigation Rail (Text-Based Navigation Menu - Persistent across all pages) */}
         <NavRail
           activeTab={activeNav}
-          onSelectTab={(tab) => {
-            setActiveNav(tab);
-            if (!isSidebarOpen) setIsSidebarOpen(true);
-          }}
+          onSelectTab={(tab) => setActiveNav(tab)}
           pendingApprovalsCount={pendingApprovals.length}
           problemsCount={0}
         />
 
-        {/* Contextual Left Sidebar */}
-        <ContextualSidebar
-          activeNav={activeNav}
-          isOpen={isSidebarOpen}
-          onToggle={() => setIsSidebarOpen((prev) => !prev)}
-          tasks={tasks}
-          activeTaskId={activeTask?.id || null}
-          onSelectTask={(task) => {
-            setActiveTask(task);
-            setActiveNav('home');
-          }}
-          onNewRequest={handleNewRequest}
-          isLoadingTasks={isLoadingTasks}
-          runtimeStatus={runtimeStatus}
-          modelHealth={modelHealth}
-          isBackendOnline={isBackendOnline}
-          onRefreshEnvironment={probeHealth}
-          onReviewChangesPrompt={() => {
-            handleSubmitPrompt('Review recent project modifications and summarize the current Git working tree.');
-          }}
-        />
+        {/* Dedicated Full-Page Workspaces */}
+        {activeNav === 'home' && (
+          <CentralWorkspace
+            messages={messages}
+            onRegenerate={handleRegenerateResponse}
+            regeneratingId={regeneratingId}
+            inputValue={inputValue}
+            onInputChange={setInputValue}
+            onSubmit={handleSubmitPrompt}
+            isSending={isSending}
+            modelHealth={modelHealth}
+            activeTask={activeTask}
+            mode={mode}
+            onSelectActionCard={(prompt, targetMode) => {
+              setInputValue(prompt);
+              handleSubmitPrompt(prompt, targetMode);
+            }}
+            expandedTraceId={expandedTraceId}
+            onToggleTrace={(id) => setExpandedTraceId((prev) => (prev === id ? null : id))}
+            onOpenApprovalModal={(step) => {
+              const req: ApprovalRequest = {
+                id: step.approvalRequestId || `app-${step.id}`,
+                taskId: activeTask?.id || 'active-task',
+                stepId: step.id,
+                taskGoal: activeTask?.goal || 'Task execution',
+                actionTitle: step.title || step.skillName,
+                toolName: step.skillName,
+                riskLevel: 'high',
+                rationale: 'Sovereign permission gateway requires user authorization to proceed.',
+                commandOrPayload: JSON.stringify(step.parameters || {}),
+                parameters: step.parameters || {},
+                createdAt: new Date().toISOString(),
+                status: 'pending',
+              };
+              setActiveApproval(req);
+            }}
+          />
+        )}
 
-        {/* Central AI Workspace */}
-        <CentralWorkspace
-          messages={messages}
-          inputValue={inputValue}
-          onInputChange={setInputValue}
-          onSubmit={handleSubmitPrompt}
-          isSending={isSending}
-          modelHealth={modelHealth}
-          activeTask={activeTask}
-          mode={mode}
-          onSelectActionCard={(prompt) => {
-            setInputValue(prompt);
-            handleSubmitPrompt(prompt);
-          }}
-          expandedTraceId={expandedTraceId}
-          onToggleTrace={(id) => setExpandedTraceId((prev) => (prev === id ? null : id))}
-          onOpenApprovalModal={(step) => {
-            // Find or synthesize approval request for step
-            const req: ApprovalRequest = {
-              id: step.approvalRequestId || `app-${step.id}`,
-              taskId: activeTask?.id || 'active-task',
-              stepId: step.id,
-              taskGoal: activeTask?.goal || 'Task execution',
-              actionTitle: step.title || step.skillName,
-              toolName: step.skillName,
-              riskLevel: 'high',
-              rationale: 'Sovereign permission gateway requires user authorization to proceed.',
-              commandOrPayload: JSON.stringify(step.parameters || {}),
-              parameters: step.parameters || {},
-              createdAt: new Date().toISOString(),
-              status: 'pending',
-            };
-            setActiveApproval(req);
-          }}
-        />
+        {activeNav === 'explorer' && <ExplorerWorkspace />}
 
-        {/* Right-Side Agent Companion Panel (Split View) */}
-        <AgentCompanion
-          isOpen={isCompanionOpen}
-          onClose={() => setIsCompanionOpen(false)}
-          tasks={tasks}
-          runtimeStatus={runtimeStatus}
-          modelHealth={modelHealth}
-          onSelectTask={(task) => {
-            setActiveTask(task);
-          }}
-        />
+        {activeNav === 'search' && (
+          <SearchWorkspace onNavigate={(dest) => setActiveNav(dest as NavDestination)} />
+        )}
+
+        {activeNav === 'git' && (
+          <GitChangesWorkspace
+            onReviewChangesPrompt={() => {
+              setActiveNav('home');
+              handleSubmitPrompt('Review recent project modifications and summarize the current Git working tree.');
+            }}
+          />
+        )}
+
+        {activeNav === 'activity' && <ActivityWorkspace />}
+
+        {activeNav === 'problems' && <ProblemsWorkspace />}
+
+        {activeNav === 'environment' && (
+          <EnvironmentWorkspace
+            runtimeStatus={runtimeStatus}
+            modelHealth={modelHealth}
+            isBackendOnline={isBackendOnline}
+            onRefresh={probeHealth}
+            isLoading={isCheckingBackend}
+          />
+        )}
+
+        {activeNav === 'memory' && <MemoryWorkspace />}
+
+        {activeNav === 'skills' && <SkillsWorkspace />}
+
+        {activeNav === 'settings' && (
+          <SettingsWorkspace
+            currentTheme={theme}
+            onThemeChange={(t) => {
+              setTheme(t);
+              document.documentElement.setAttribute('data-theme', t);
+              try {
+                localStorage.setItem('go81_theme', t);
+              } catch {
+                // ignore
+              }
+            }}
+            currentMode={mode}
+            onModeChange={handleModeChange}
+          />
+        )}
+
+        {/* Right-Side Agent Companion Panel (Only on Home when opened) */}
+        {activeNav === 'home' && (
+          <AgentCompanion
+            isOpen={isCompanionOpen}
+            onClose={() => setIsCompanionOpen(false)}
+            tasks={tasks}
+            runtimeStatus={runtimeStatus}
+            modelHealth={modelHealth}
+            onSelectTask={(task) => {
+              setActiveTask(task);
+            }}
+          />
+        )}
       </div>
 
       {/* 3. Bottom Developer Dock */}
@@ -356,13 +498,15 @@ export default function CommandCenterPage() {
         onClose={() => setIsCommandPaletteOpen(false)}
         onSelectNav={(dest) => {
           setActiveNav(dest);
-          if (!isSidebarOpen) setIsSidebarOpen(true);
         }}
         mode={mode}
         onToggleMode={handleModeChange}
         theme={theme}
         onToggleTheme={handleToggleTheme}
-        onNewRequest={handleNewRequest}
+        onNewRequest={() => {
+          setActiveNav('home');
+          handleNewRequest();
+        }}
         onSaveCheckpoint={async () => {
           await api.createCheckpoint('Manual Checkpoint', 'Saved from command palette');
           probeHealth();

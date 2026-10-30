@@ -1,5 +1,7 @@
 @import "tailwindcss";
 
+@custom-variant dark (&:where([data-theme="dark"], [data-theme="dark"] *, [data-theme="oled-dark"], [data-theme="oled-dark"] *, .dark, .dark *));
+
 /* =========================================================
    GO 81 — SOVEREIGN AI AGENT COMMAND CENTER DESIGN SYSTEM
    Dark: Near-black #0e1117 · Charcoal #161a23 · Warm White #f3f4f6 · Restrained Vermilion/Orange #ea580c / #f97316
@@ -8,27 +10,32 @@
 
 @layer base {
 
-  /* 1. DARK THEME (Default Command Center) */
+  /* 1. DARK THEME (ChatGPT-Inspired Deep Near-Black Palette) */
   :root,
   [data-theme="dark"] {
-    --bg-canvas: #0e1117;
-    --bg-surface: #161a23;
-    --bg-elevated: #1c212d;
-    --bg-subtle: #232a39;
+    --bg-canvas: #0F0F10;
+    --bg-sidebar: #17181C;
+    --sidebar-text: #E5E7EB;
+    --sidebar-text-active: #F4511E;
+    --sidebar-text-hover: #FFFFFF;
+    --bg-surface: #111214;
+    --bg-composer: #1B1C20;
+    --bg-elevated: #202126;
+    --bg-subtle: #191A1E;
 
-    --border-subtle: rgba(255, 255, 255, 0.08);
-    --border-medium: rgba(255, 255, 255, 0.15);
-    --border-strong: rgba(255, 255, 255, 0.28);
+    --border-subtle: #2A2C31;
+    --border-medium: #3A3D44;
+    --border-strong: #525660;
 
-    --text-primary: #f3f4f6;
-    --text-secondary: #94a3b8;
-    --text-muted: #64748b;
+    --text-primary: #F4F4F5;
+    --text-secondary: #A1A1AA;
+    --text-muted: #777B85;
 
-    /* Restrained Vermilion / Orange Accent */
-    --accent-primary: #f97316;
-    --accent-primary-hover: #fb923c;
-    --accent-primary-bg: rgba(249, 115, 22, 0.12);
-    --accent-primary-border: rgba(249, 115, 22, 0.35);
+    /* Go 81 Orange Accent */
+    --accent-primary: #ea580c;
+    --accent-primary-hover: #f97316;
+    --accent-primary-bg: rgba(234, 88, 12, 0.12);
+    --accent-primary-border: rgba(234, 88, 12, 0.35);
 
     --accent-vermilion: #ea580c;
     --accent-vermilion-hover: #f97316;
@@ -38,9 +45,9 @@
     --accent-navy-bg: rgba(255, 255, 255, 0.06);
 
     /* Compatibility tokens */
-    --accent-lemon: #f97316;
-    --accent-lemon-bg: rgba(249, 115, 22, 0.12);
-    --accent-lemon-border: rgba(249, 115, 22, 0.35);
+    --accent-lemon: #ea580c;
+    --accent-lemon-bg: rgba(234, 88, 12, 0.12);
+    --accent-lemon-border: rgba(234, 88, 12, 0.35);
 
     /* Status indicators */
     --accent-emerald: #10b981;
@@ -55,28 +62,33 @@
     --accent-rose: #ef4444;
     --accent-rose-bg: rgba(239, 68, 68, 0.12);
 
-    --scrollbar-thumb: #2d3748;
-    --scrollbar-thumb-hover: #4a5568;
+    --scrollbar-thumb: #2A2C31;
+    --scrollbar-thumb-hover: #3A3D44;
 
     color-scheme: dark;
   }
 
-  /* 2. LIGHT THEME */
+  /* 2. LIGHT THEME (High Contrast & Clear Separation) */
   [data-theme="light"] {
-    --bg-canvas: #f8f9fa;
-    --bg-surface: #ffffff;
-    --bg-elevated: #f1f3f5;
-    --bg-subtle: #e9ecef;
+    --bg-canvas: #F7F8FA;
+    --bg-sidebar: #EEF0F3;
+    --sidebar-text: #18181B;
+    --sidebar-text-active: #F4511E;
+    --sidebar-text-hover: #09090B;
+    --bg-surface: #FFFFFF;
+    --bg-composer: #FFFFFF;
+    --bg-elevated: #F1F3F5;
+    --bg-subtle: #E9ECEF;
 
-    --border-subtle: #e2e8f0;
-    --border-medium: #cbd5e1;
-    --border-strong: #94a3b8;
+    --border-subtle: #E3E5E8;
+    --border-medium: #CBD5E1;
+    --border-strong: #94A3B8;
 
-    --text-primary: #0f172a;
-    --text-secondary: #64748b;
-    --text-muted: #94a3b8;
+    --text-primary: #15171B;
+    --text-secondary: #475569;
+    --text-muted: #8A92A0;
 
-    /* Restrained Vermilion / Orange Accent matching dark mode */
+    /* Go 81 Orange Accent */
     --accent-primary: #ea580c;
     --accent-primary-hover: #c2410c;
     --accent-primary-bg: #fff7ed;
@@ -86,7 +98,7 @@
     --accent-vermilion-hover: #c2410c;
     --accent-vermilion-bg: #fff7ed;
 
-    --accent-navy: #0f172a;
+    --accent-navy: #15171B;
     --accent-navy-bg: #f1f5f9;
 
     /* Compatibility tokens */
@@ -107,8 +119,8 @@
     --accent-rose: #dc2626;
     --accent-rose-bg: #fef2f2;
 
-    --scrollbar-thumb: #cbd5e1;
-    --scrollbar-thumb-hover: #94a3b8;
+    --scrollbar-thumb: #CBD5E1;
+    --scrollbar-thumb-hover: #94A3B8;
 
     color-scheme: light;
   }
@@ -116,33 +128,41 @@
   /* OLED Light / Dark aliases */
   [data-theme="oled-dark"] {
     --bg-canvas: #000000;
-    --bg-surface: #0b0d13;
-    --bg-elevated: #121620;
-    --bg-subtle: #191f2c;
-    --border-subtle: rgba(255, 255, 255, 0.09);
-    --border-medium: rgba(255, 255, 255, 0.18);
-    --text-primary: #ffffff;
-    --text-secondary: #94a3b8;
-    --text-muted: #64748b;
-    --accent-primary: #f97316;
-    --accent-primary-hover: #fb923c;
-    --accent-primary-bg: rgba(249, 115, 22, 0.15);
+    --bg-sidebar: #0C0D0E;
+    --sidebar-text: #E5E7EB;
+    --sidebar-text-active: #F4511E;
+    --sidebar-text-hover: #FFFFFF;
+    --bg-surface: #070809;
+    --bg-composer: #121316;
+    --bg-elevated: #18191E;
+    --bg-subtle: #141518;
+    --border-subtle: #1E2025;
+    --border-medium: #2C2E35;
+    --text-primary: #F4F4F5;
+    --text-secondary: #A1A1AA;
+    --text-muted: #777B85;
+    --accent-primary: #ea580c;
+    --accent-vermilion: #ea580c;
     color-scheme: dark;
   }
 
   [data-theme="oled-light"] {
-    --bg-canvas: #ffffff;
-    --bg-surface: #ffffff;
-    --bg-elevated: #f8fafc;
-    --bg-subtle: #f1f5f9;
-    --border-subtle: #e2e8f0;
-    --border-medium: #cbd5e1;
-    --text-primary: #0f172a;
-    --text-secondary: #475569;
-    --text-muted: #64748b;
+    --bg-canvas: #FFFFFF;
+    --bg-sidebar: #F0F2F5;
+    --sidebar-text: #18181B;
+    --sidebar-text-active: #F4511E;
+    --sidebar-text-hover: #000000;
+    --bg-surface: #FFFFFF;
+    --bg-composer: #FFFFFF;
+    --bg-elevated: #F8F9FA;
+    --bg-subtle: #EDF0F3;
+    --border-subtle: #E3E5E8;
+    --border-medium: #CBD5E1;
+    --text-primary: #000000;
+    --text-secondary: #334155;
+    --text-muted: #64748B;
     --accent-primary: #ea580c;
-    --accent-primary-hover: #c2410c;
-    --accent-primary-bg: #fff7ed;
+    --accent-vermilion: #ea580c;
     color-scheme: light;
   }
 
@@ -228,6 +248,13 @@
 *:focus-visible {
   outline: 2px solid var(--accent-primary);
   outline-offset: 2px;
+}
+
+/* Eliminate nested focus outline on composer textarea to prevent double border */
+textarea:focus,
+textarea:focus-visible {
+  outline: none !important;
+  box-shadow: none !important;
 }
 
 /* SEMANTIC UTILITIES */

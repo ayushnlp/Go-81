@@ -1,26 +1,14 @@
 'use client';
 
 import React from 'react';
-import {
-  Home,
-  FolderTree,
-  Search,
-  GitBranch,
-  AlertTriangle,
-  History,
-  Server,
-  Database,
-  Wrench,
-  Settings,
-} from 'lucide-react';
 
 export type NavDestination =
   | 'home'
   | 'explorer'
   | 'search'
   | 'git'
-  | 'problems'
   | 'activity'
+  | 'problems'
   | 'environment'
   | 'memory'
   | 'skills'
@@ -36,20 +24,32 @@ interface NavRailProps {
 interface NavItemDef {
   id: NavDestination;
   label: string;
-  icon: React.ComponentType<{ className?: string }>;
-  badge?: number;
 }
 
-const mainNavItems: NavItemDef[] = [
-  { id: 'home', label: 'Command Center', icon: Home },
-  { id: 'explorer', label: 'File Explorer', icon: FolderTree },
-  { id: 'search', label: 'Global Search', icon: Search },
-  { id: 'git', label: 'Source Control & Changes', icon: GitBranch },
-  { id: 'activity', label: 'Activity History & Checkpoints', icon: History },
-  { id: 'problems', label: 'Problems & Diagnostics', icon: AlertTriangle },
-  { id: 'environment', label: 'System Environment', icon: Server },
-  { id: 'memory', label: 'Encrypted Memory Vault', icon: Database },
-  { id: 'skills', label: 'Skills Forge', icon: Wrench },
+// 1. Workspace Group
+const workspaceItems: NavItemDef[] = [
+  { id: 'home', label: 'Home' },
+  { id: 'explorer', label: 'Explorer' },
+  { id: 'search', label: 'Search' },
+];
+
+// 2. Development Group
+const devItems: NavItemDef[] = [
+  { id: 'git', label: 'Git & Changes' },
+  { id: 'activity', label: 'Activity History' },
+  { id: 'problems', label: 'Problems' },
+  { id: 'environment', label: 'Environment' },
+];
+
+// 3. Knowledge Group
+const knowledgeItems: NavItemDef[] = [
+  { id: 'memory', label: 'Memory Vault' },
+  { id: 'skills', label: 'Skills Forge' },
+];
+
+// 4. Bottom Group
+const bottomItems: NavItemDef[] = [
+  { id: 'settings', label: 'Settings' },
 ];
 
 export const NavRail: React.FC<NavRailProps> = ({
@@ -58,80 +58,95 @@ export const NavRail: React.FC<NavRailProps> = ({
   pendingApprovalsCount = 0,
   problemsCount = 0,
 }) => {
+  const renderItem = (item: NavItemDef) => {
+    const isActive = activeTab === item.id;
+    const badgeCount =
+      item.id === 'problems'
+        ? problemsCount + pendingApprovalsCount
+        : item.id === 'skills'
+        ? pendingApprovalsCount
+        : 0;
+
+    return (
+      <button
+        key={item.id}
+        type="button"
+        onClick={() => onSelectTab(item.id)}
+        aria-current={isActive ? 'page' : undefined}
+        className="w-full text-left h-[34px] pl-3.5 pr-2.5 rounded-md text-[14px] sm:text-[14.5px] transition-colors cursor-pointer flex items-center justify-between select-none hover:bg-black/[0.04] dark:hover:bg-white/[0.04]"
+        style={{
+          color: isActive ? 'var(--sidebar-text-active, #F4511E)' : 'var(--sidebar-text, #18181B)',
+          fontWeight: isActive ? 600 : 500,
+          opacity: 1,
+        }}
+      >
+        <span
+          className="truncate"
+          style={{
+            color: isActive ? 'var(--sidebar-text-active, #F4511E)' : 'var(--sidebar-text, #18181B)',
+            fontWeight: isActive ? 600 : 500,
+            opacity: 1,
+          }}
+        >
+          {item.label}
+        </span>
+        <div className="flex items-center space-x-1.5 shrink-0 ml-1.5">
+          {badgeCount > 0 && (
+            <span className="text-[10px] font-bold px-1.5 py-0.2 rounded-full bg-[#F4511E] text-white">
+              {badgeCount > 9 ? '9+' : badgeCount}
+            </span>
+          )}
+          {isActive && (
+            <span
+              className="w-1.5 h-1.5 rounded-full shrink-0"
+              style={{ backgroundColor: 'var(--sidebar-text-active, #F4511E)' }}
+            />
+          )}
+        </div>
+      </button>
+    );
+  };
+
   return (
     <aside
-      aria-label="Application Navigation Rail"
-      className="w-13 border-r border-[var(--border-subtle)] bg-[var(--bg-surface)] flex flex-col items-center justify-between py-2 shrink-0 select-none z-20"
+      aria-label="Application Navigation"
+      className="w-[212px] min-w-[212px] max-w-[212px] border-r border-[var(--border-subtle)] bg-[var(--bg-sidebar)] flex flex-col justify-between py-3 px-2 shrink-0 select-none z-20 overflow-y-auto"
+      style={{
+        width: '212px',
+        minWidth: '212px',
+        maxWidth: '212px',
+        backgroundColor: 'var(--bg-sidebar, #EEF0F3)',
+        opacity: 1,
+      }}
     >
-      {/* Top Main Navigation Group */}
-      <div className="flex flex-col items-center space-y-1 w-full px-1">
-        {mainNavItems.map((item) => {
-          const Icon = item.icon;
-          const isActive = activeTab === item.id;
-          const badgeCount =
-            item.id === 'problems'
-              ? problemsCount + pendingApprovalsCount
-              : item.id === 'skills'
-              ? pendingApprovalsCount
-              : 0;
+      {/* Top and Middle Navigation Groups */}
+      <div className="flex flex-col w-full space-y-0.5">
+        {/* Workspace */}
+        <div className="flex flex-col space-y-0.5 w-full">
+          {workspaceItems.map(renderItem)}
+        </div>
 
-          return (
-            <button
-              key={item.id}
-              type="button"
-              onClick={() => onSelectTab(item.id)}
-              title={item.label}
-              className={`relative w-10 h-10 rounded-lg flex items-center justify-center transition-all group cursor-pointer ${
-                isActive
-                  ? 'bg-[var(--accent-primary-bg)] text-[var(--accent-primary)] font-medium shadow-2xs'
-                  : 'text-[var(--text-secondary)] hover:text-[var(--text-primary)] hover:bg-[var(--bg-elevated)]'
-              }`}
-            >
-              {/* Left Active Indicator Bar */}
-              {isActive && (
-                <span className="absolute left-0 top-2 bottom-2 w-0.5 rounded-r bg-[#ea580c]" />
-              )}
+        {/* Separator */}
+        <div className="my-1.5 border-t border-[var(--border-subtle)] opacity-60" />
 
-              <Icon className="w-4.5 h-4.5 transition-transform duration-150 group-hover:scale-105" />
+        {/* Development */}
+        <div className="flex flex-col space-y-0.5 w-full">
+          {devItems.map(renderItem)}
+        </div>
 
-              {/* Badge for Pending Items or Errors */}
-              {badgeCount > 0 && (
-                <span className="absolute top-1 right-1 min-w-[14px] h-[14px] px-0.5 rounded-full bg-[#ea580c] text-white text-[9px] font-bold flex items-center justify-center">
-                  {badgeCount > 9 ? '9+' : badgeCount}
-                </span>
-              )}
+        {/* Separator */}
+        <div className="my-1.5 border-t border-[var(--border-subtle)] opacity-60" />
 
-              {/* Tooltip on hover */}
-              <span className="absolute left-13 px-2 py-1 rounded bg-[var(--bg-elevated)] text-[var(--text-primary)] border border-[var(--border-subtle)] text-xs font-normal whitespace-nowrap opacity-0 group-hover:opacity-100 pointer-events-none transition-opacity duration-150 shadow-md z-50">
-                {item.label}
-              </span>
-            </button>
-          );
-        })}
+        {/* Knowledge */}
+        <div className="flex flex-col space-y-0.5 w-full">
+          {knowledgeItems.map(renderItem)}
+        </div>
       </div>
 
-      {/* Bottom Pinned Controls: Settings */}
-      <div className="flex flex-col items-center space-y-1 w-full px-1 pt-2 border-t border-[var(--border-subtle)]">
-        <button
-          type="button"
-          onClick={() => onSelectTab('settings')}
-          title="Settings & Privacy Controls"
-          className={`relative w-10 h-10 rounded-lg flex items-center justify-center transition-all group cursor-pointer ${
-            activeTab === 'settings'
-              ? 'bg-[var(--accent-primary-bg)] text-[var(--accent-primary)] shadow-2xs'
-              : 'text-[var(--text-secondary)] hover:text-[var(--text-primary)] hover:bg-[var(--bg-elevated)]'
-          }`}
-        >
-          {activeTab === 'settings' && (
-            <span className="absolute left-0 top-2 bottom-2 w-0.5 rounded-r bg-[#ea580c]" />
-          )}
-          <Settings className="w-4.5 h-4.5 transition-transform duration-150 group-hover:scale-105" />
-          <span className="absolute left-13 px-2 py-1 rounded bg-[var(--bg-elevated)] text-[var(--text-primary)] border border-[var(--border-subtle)] text-xs font-normal whitespace-nowrap opacity-0 group-hover:opacity-100 pointer-events-none transition-opacity duration-150 shadow-md z-50">
-            Settings & Privacy
-          </span>
-        </button>
+      {/* Bottom Pinned Group: Settings */}
+      <div className="flex flex-col w-full pt-2 border-t border-[var(--border-subtle)] mt-auto">
+        {bottomItems.map(renderItem)}
       </div>
     </aside>
   );
 };
-

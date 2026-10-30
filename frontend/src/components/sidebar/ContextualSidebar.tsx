@@ -45,18 +45,7 @@ export const ContextualSidebar: React.FC<ContextualSidebarProps> = ({
   onReviewChangesPrompt,
 }) => {
   if (!isOpen) {
-    return (
-      <div className="relative z-10">
-        <button
-          type="button"
-          onClick={onToggle}
-          title="Expand sidebar"
-          className="absolute left-1 top-3 p-1 rounded bg-[var(--bg-surface)] hover:bg-[var(--bg-elevated)] border border-[var(--border-subtle)] text-[var(--text-muted)] hover:text-[var(--text-primary)] shadow-sm transition-colors cursor-pointer"
-        >
-          <ChevronRight className="w-3.5 h-3.5" />
-        </button>
-      </div>
-    );
+    return null;
   }
 
   return (

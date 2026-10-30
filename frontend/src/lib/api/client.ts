@@ -187,19 +187,19 @@ class Go81ApiClient {
       // Graceful offline response
     }
 
-    // Local simulation response when offline
-    const simulatedResponse: ChatMessage = {
-      id: `msg-${Date.now()}`,
+    // Clean connection error when backend is unavailable
+    const connectionErrorResponse: ChatMessage = {
+      id: `err-${Date.now()}`,
       role: 'agent',
-      content: `[Offline Staging Mode] Received: "${prompt}". Live backend at ${this.baseUrl} is unreachable. Ensure 'python -m app.main' is running.`,
+      content: `Unable to connect to the Go 81 backend at ${this.baseUrl}. The local FastAPI service is currently unreachable. Please ensure the backend is running on port 8000.`,
       timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
-      thoughtTrace: `Simulated pipeline: Prompt mode '${mode}' evaluated locally. Zero data transmitted externally. Connect to FastAPI backend for live local Ollama inference.`,
+      thoughtTrace: `Connection failure: POST /api/agent/chat failed or timed out. Ensure the Go 81 FastAPI backend server is running locally on port 8000.`,
     };
 
     return {
-      data: simulatedResponse,
-      isDemoFixture: true,
-      error: `Backend offline. Simulated locally.`,
+      data: connectionErrorResponse,
+      isDemoFixture: false,
+      error: `Backend offline or unreachable at ${this.baseUrl}.`,
     };
   }
 
@@ -491,6 +491,18 @@ class Go81ApiClient {
   /**
    * Filesystem list via built-in skill
    */
+    async readFile(path: string): Promise<ApiResponse<{ content: string }>> {
+    const res = await this.executeSkill('filesystem.read', { path });
+    if (res.data && res.data.result) {
+      const content =
+        typeof res.data.result.content === 'string'
+          ? res.data.result.content
+          : JSON.stringify(res.data.result, null, 2);
+      return { data: { content }, isDemoFixture: false };
+    }
+    return { data: { content: '' }, isDemoFixture: false };
+  }
+
   async listFilesystem(path: string = '.', recursive: boolean = false): Promise<ApiResponse<FileEntry[]>> {
     const res = await this.executeSkill('filesystem.list', { path, recursive, max_items: 200 });
     if (res.data && res.data.result && Array.isArray(res.data.result.entries)) {
