@@ -424,6 +424,27 @@ def get_task_by_id(task_id: str):
     return task
 
 
+@app.post("/api/tasks/{task_id}/cancel", tags=["Tasks & DAGs"])
+async def cancel_task_by_id(task_id: str, req: Optional[Dict[str, Any]] = None):
+    """Cancels an active or paused task DAG."""
+    task_orchestrator = get_orchestrator()
+    reason = (req or {}).get("reason", "Cancelled by user request")
+    try:
+        return await task_orchestrator.cancel_task(task_id, reason=reason)
+    except KeyError as e:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=str(e))
+
+
+@app.get("/api/tasks/{task_id}/report", tags=["Tasks & DAGs"])
+def get_task_report(task_id: str):
+    """Retrieves the truthful, evidence-based final task report."""
+    task_orchestrator = get_orchestrator()
+    task = task_orchestrator.get_task(task_id)
+    if not task:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=f"Task '{task_id}' not found.")
+    return task_orchestrator._generate_final_report(task)
+
+
 @app.get(
     "/api/tasks/{task_id}/events/stream",
     response_class=StreamingResponse,
