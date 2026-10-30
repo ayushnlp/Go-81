@@ -1,8 +1,9 @@
 'use client';
 
 import React from 'react';
-import { Search, Sun, Moon, Terminal, Columns2 } from 'lucide-react';
+import { Sun, Moon, Terminal, Columns2 } from 'lucide-react';
 import { AudienceMode, AppearancePreset, AgentRuntimeStatus, ModelHealth } from '@/lib/api/types';
+import { CenteredSearchBar } from './CenteredSearchBar';
 
 export interface TopNavProps {
   mode: AudienceMode;
@@ -15,6 +16,7 @@ export interface TopNavProps {
   isChecking?: boolean;
   onRefreshHealth?: () => void;
   onOpenCommandPalette: () => void;
+  onNavigate?: (destination: string, query?: string) => void;
   isCompanionOpen?: boolean;
   onToggleCompanion?: () => void;
   isDockOpen?: boolean;
@@ -31,13 +33,12 @@ export const TopNav: React.FC<TopNavProps> = ({
   runtimeStatus,
   onRefreshHealth,
   onOpenCommandPalette,
+  onNavigate,
   isCompanionOpen,
   onToggleCompanion,
   isDockOpen,
   onToggleDock,
 }) => {
-  const isMac = typeof window !== 'undefined' && navigator.platform?.toUpperCase().indexOf('MAC') >= 0;
-  const shortcutHint = isMac ? '⌘K' : 'Ctrl+K';
   const isDark = theme === 'dark' || theme === 'oled-dark';
 
   const isDegraded = isBackendOnline && (
@@ -51,33 +52,31 @@ export const TopNav: React.FC<TopNavProps> = ({
   const tooltipText = isHealthy ? 'Backend Connected' : 'Backend Disconnected';
 
   return (
-    <header className="h-12 w-full border-b border-[var(--border-subtle)] bg-[var(--bg-surface)] px-4 flex items-center justify-between select-none z-30 shrink-0">
+    <header className="relative h-12 w-full border-b border-[var(--border-subtle)] bg-[var(--bg-surface)] px-4 flex items-center justify-between select-none z-30 shrink-0">
       {/* 1. Go 81 Branding - Clean Typography Only */}
-      <div className="flex items-center shrink-0">
+      <div className="flex items-center shrink-0 z-10">
         <span className="font-bold text-[15px] sm:text-base tracking-tight text-[var(--text-primary)] select-none">
           Go 81
         </span>
       </div>
 
-      {/* 2. Global Search Bar (Fully rounded / pill-shaped) */}
-      <div className="flex-1 max-w-md mx-6">
-        <button
-          type="button"
-          onClick={onOpenCommandPalette}
-          className="w-full flex items-center justify-between px-3.5 py-1.5 rounded-full bg-[var(--bg-canvas)] border border-[var(--border-subtle)] hover:border-[var(--border-medium)] transition-colors text-xs text-[var(--text-muted)] cursor-pointer focus:outline-none"
-        >
-          <div className="flex items-center space-x-2 truncate">
-            <Search className="w-3.5 h-3.5 text-[var(--text-muted)] shrink-0" />
-            <span className="truncate">Search files or actions...</span>
-          </div>
-          <kbd className="hidden sm:inline-flex items-center px-2 py-0.5 text-[10px] font-mono rounded-full bg-[var(--bg-elevated)] border border-[var(--border-subtle)] text-[var(--text-muted)]">
-            {shortcutHint}
-          </kbd>
-        </button>
+      {/* 2. Global Centered Search Bar - Mathematically Centered in Top Bar */}
+      <div className="absolute inset-x-0 mx-auto w-full max-w-[420px] sm:max-w-[460px] px-4 pointer-events-none flex justify-center items-center z-20">
+        <div className="pointer-events-auto w-full">
+          <CenteredSearchBar
+            onNavigate={(dest, query) => {
+              if (onNavigate) {
+                onNavigate(dest, query);
+              } else {
+                onOpenCommandPalette();
+              }
+            }}
+          />
+        </div>
       </div>
 
       {/* Right Controls: 3. Mode Switcher, Dock/Companion, 4. Theme Icon, 5. Backend Status Dot */}
-      <div className="flex items-center space-x-4 shrink-0">
+      <div className="flex items-center space-x-4 shrink-0 z-10">
         {/* 3. User / Dev Mode Switch (Text-only directly on background) */}
         <div className="flex items-center space-x-3">
           <button

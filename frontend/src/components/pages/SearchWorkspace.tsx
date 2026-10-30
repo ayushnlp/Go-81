@@ -15,8 +15,19 @@ interface SearchResultItem {
   onClick?: () => void;
 }
 
-export const SearchWorkspace: React.FC<{ onNavigate?: (dest: string) => void }> = ({ onNavigate }) => {
-  const [query, setQuery] = useState('');
+export interface SearchWorkspaceProps {
+  onNavigate?: (dest: string) => void;
+  initialQuery?: string;
+}
+
+export const SearchWorkspace: React.FC<SearchWorkspaceProps> = ({ onNavigate, initialQuery = '' }) => {
+  const [query, setQuery] = useState(initialQuery);
+
+  useEffect(() => {
+    if (initialQuery !== undefined) {
+      setQuery(initialQuery);
+    }
+  }, [initialQuery]);
   const [categoryFilter, setCategoryFilter] = useState<'all' | 'file' | 'skill' | 'memory' | 'action'>('all');
   const [files, setFiles] = useState<FileEntry[]>([]);
   const [skills, setSkills] = useState<SkillDefinition[]>([]);

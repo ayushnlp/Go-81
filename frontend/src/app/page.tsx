@@ -78,6 +78,7 @@ function inferIntent(text: string): 'chat' | 'task' | 'memory' {
 export default function CommandCenterPage() {
   // Navigation & Layout States
   const [activeNav, setActiveNav] = useState<NavDestination>('home');
+  const [searchQuery, setSearchQuery] = useState('');
   const [isCompanionOpen, setIsCompanionOpen] = useState(false);
   const [isDockOpen, setIsDockOpen] = useState(false);
   const [isCommandPaletteOpen, setIsCommandPaletteOpen] = useState(false);
@@ -338,6 +339,14 @@ export default function CommandCenterPage() {
           isChecking={isCheckingBackend}
           onRefreshHealth={probeHealth}
           onOpenCommandPalette={() => setIsCommandPaletteOpen(true)}
+          onNavigate={(dest, q) => {
+            if (dest === 'search') {
+              setSearchQuery(q || '');
+              setActiveNav('search');
+            } else {
+              setActiveNav(dest as NavDestination);
+            }
+          }}
           isCompanionOpen={isCompanionOpen}
           onToggleCompanion={() => setIsCompanionOpen((prev) => !prev)}
           isDockOpen={isDockOpen}
@@ -421,7 +430,7 @@ export default function CommandCenterPage() {
         {activeNav === 'explorer' && <ExplorerWorkspace />}
 
         {activeNav === 'search' && (
-          <SearchWorkspace onNavigate={(dest) => setActiveNav(dest as NavDestination)} />
+          <SearchWorkspace onNavigate={(dest) => setActiveNav(dest as NavDestination)} initialQuery={searchQuery} />
         )}
 
         {activeNav === 'git' && (

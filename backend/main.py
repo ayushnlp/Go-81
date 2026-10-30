@@ -25,6 +25,7 @@ from app.memory.service import query_relevant_context
 from backend.health import ModelHealthReport, probe_model_health
 from backend.orchestrator import TaskOrchestrator
 from backend.planner import TaskDAG, TaskPlanner, is_conversational_query
+from backend.conversational import get_conversational_engine, format_local_timestamp
 
 logger = logging.getLogger(__name__)
 
@@ -145,6 +146,7 @@ class ApprovalDecisionRequest(BaseModel):
 class ChatMessageRequest(BaseModel):
     prompt: str = Field(..., description="User prompt or question")
     mode: Optional[str] = Field(default="chat", description="'chat' | 'task' | 'memory'")
+    session_id: Optional[str] = Field(default="default", description="Conversation session ID")
 
 
 class ActionProposal(BaseModel):
@@ -167,6 +169,10 @@ class ChatMessageResponse(BaseModel):
     citedMemoryIds: List[str] = Field(default_factory=list)
     relatedTaskId: Optional[str] = None
     actionProposal: Optional[ActionProposal] = None
+    intent: Optional[Dict[str, Any]] = None
+    evidence: Optional[List[Dict[str, Any]]] = None
+    retrievalStatus: Optional[str] = None
+    sessionId: Optional[str] = None
 
 
 # ============================================================================
@@ -215,135 +221,43 @@ def is_explicit_memory_query(query: str) -> bool:
 async def dispatch_chat_message(req: ChatMessageRequest):
     """
     Dispatches user prompt to sovereign agent.
-    Retrieves relevant user preferences, goals, and prior decisions from durable memory.
-    Guarantees that conversational questions cannot trigger tools or require approval.
+    Routes conversational questions through the Intelligent Conversational Engine
+    (with multi-turn context, deterministic math, factual guards, and local Ollama reasoning).
+    Routes imperative tasks through the Autonomous Orchestrator and TaskPlanner DAG.
     """
     prompt = req.prompt.strip()
     is_conv = is_conversational_query(prompt)
     mode = (req.mode or "chat").lower()
-    is_memory_query = (mode == "memory") or is_explicit_memory_query(prompt)
+    session_id = getattr(req, "session_id", None) or "default"
+    now_str = format_local_timestamp()
 
-    # Query durable memory context
+    # Query durable memory context via backend.main.query_relevant_context
     context = query_relevant_context(prompt, memory_service=SubsystemContainer.memory_service)
     cited_ids = context.get("cited_memory_ids", [])
-    now_str = datetime.now(timezone.utc).strftime("%I:%M %p")
 
-    # If conversational mode or query is conversational, NEVER trigger tools
+    # Conversational mode or informational question: dispatch through Intelligent Conversational Engine
     if mode == "chat" or is_conv or mode == "memory":
-        if is_memory_query and not cited_ids:
-            if context.get("memory_available") is False:
-                content = "Memory subsystem is currently unavailable. No prior preferences or decisions could be retrieved."
-            else:
-                content = "I reviewed your saved memories, but found no relevant prior preferences, goals, or decisions matching your question."
-        elif cited_ids:
-            sections = []
-            if context.get("preferences"):
-                p_lines = [f"- {p['subject']}: {p['predicate']} is {p['object_value']}" for p in context["preferences"]]
-                sections.append("Preferences:\n" + "\n".join(p_lines))
-            if context.get("relevant_goals"):
-                g_lines = [f"- {g['predicate']}: {g['object_value']}" for g in context["relevant_goals"]]
-                sections.append("Goals:\n" + "\n".join(g_lines))
-            if context.get("prior_decisions"):
-                d_lines = [f"- {d['predicate']}: {d['object_value']}" for d in context["prior_decisions"]]
-                sections.append("Prior Decisions:\n" + "\n".join(d_lines))
-            if context.get("verified_facts"):
-                f_lines = [f"- {f['subject']} {f['predicate']} {f['object_value']}" for f in context["verified_facts"]]
-            verified_memory_text = "\n\n".join(sections)
-            content = "Here is what I found in your personal memory:\n\n" + verified_memory_text
-
-            # If live model inference is reachable, consume injected memory context in model chat
-            planner_inst = get_planner()
-            if planner_inst and getattr(planner_inst, "ollama_endpoint", None):
-                try:
-                    with httpx.Client(timeout=30.0) as http_client:
-                        from backend.ollama_client import OllamaClient, OllamaConfig
-                        cfg = OllamaConfig(
-                            base_url=planner_inst.ollama_endpoint,
-                            chat_model=planner_inst.model,
-                            connect_timeout=5.0,
-                            request_timeout=30.0,
-                        )
-                        client = OllamaClient(config=cfg, http_client=http_client)
-                        sys_prompt = (
-                            "You are Go 81's Sovereign Personal Assistant. "
-                            "Answer the user's question accurately using their verified personal memories:\n"
-                            f"{verified_memory_text}\n\n"
-                            "Important: Always preserve and state the exact terminology, names, and values of the user's preferences, goals, and decisions verbatim as recorded."
-                        )
-                        chat_res = client.chat(
-                            messages=[
-                                {"role": "system", "content": sys_prompt},
-                                {"role": "user", "content": prompt},
-                            ],
-                            options={"temperature": 0.0},
-                            timeout=30.0,
-                        )
-                        if chat_res.content and chat_res.content.strip():
-                            candidate = chat_res.content.strip()
-                            for p in context.get("preferences", []):
-                                val = p.get("object_value")
-                                if isinstance(val, str) and val.lower() in candidate.lower() and val not in candidate:
-                                    candidate = re.sub(re.escape(val), val, candidate, flags=re.IGNORECASE)
-                            content = candidate
-                except Exception as e:
-                    logger.warning(f"Ollama memory-assisted chat inference failed: {e}")
-        else:
-            # Ordinary conversational question with no relevant memories:
-            # Always invoke local Ollama model to generate assistant answer
-            content = ""
-            planner_inst = get_planner()
-            if planner_inst and getattr(planner_inst, "ollama_endpoint", None):
-                try:
-                    with httpx.Client(timeout=30.0) as http_client:
-                        from backend.ollama_client import OllamaClient, OllamaConfig
-                        cfg = OllamaConfig(
-                            base_url=planner_inst.ollama_endpoint,
-                            chat_model=planner_inst.model,
-                            connect_timeout=5.0,
-                            request_timeout=30.0,
-                        )
-                        client = OllamaClient(config=cfg, http_client=http_client)
-                        sys_prompt = (
-                            "You are Go 81, a Sovereign Personal AI Agent running locally on the user's machine. "
-                            "You assist with workflow orchestration, coding, task automation, and secure local memory. "
-                            "Give a direct, helpful, and concise response."
-                        )
-                        chat_res = client.chat(
-                            messages=[
-                                {"role": "system", "content": sys_prompt},
-                                {"role": "user", "content": prompt},
-                            ],
-                            timeout=30.0,
-                        )
-                        if chat_res.content and chat_res.content.strip():
-                            content = chat_res.content.strip()
-                except Exception as e:
-                    logger.warning(f"Ollama conversational chat inference failed: {e}")
-
-            # Honest conversational fallback if Ollama daemon is offline or did not return text
-            if not content:
-                lower_p = prompt.lower()
-                if any(id_phrase in lower_p for id_phrase in ["who are you", "what is your name", "state your name", "what do you do", "what does go 81 do"]):
-                    content = (
-                        "I am Go 81, a Sovereign Personal AI Agent running locally on your machine. "
-                        "I assist with autonomous workflow orchestration, coding, task automation, and secure local memory."
-                    )
-                else:
-                    content = (
-                        "I am currently operating in sovereign offline mode. "
-                        "Local inference on Ollama (http://127.0.0.1:11434) is currently unreachable. "
-                        "Please ensure the Ollama daemon is running to enable full conversational intelligence."
-                    )
-
+        engine = get_conversational_engine()
+        result = engine.handle_message(
+            prompt=prompt,
+            mode=mode,
+            session_id=session_id,
+            memory_service=SubsystemContainer.memory_service,
+            memory_context=context,
+        )
         return ChatMessageResponse(
             id=f"msg-{int(time.time() * 1000)}",
             role="agent",
-            content=content,
+            content=result["content"],
             timestamp=now_str,
-            thoughtTrace=f"Retrieved {len(cited_ids)} verified personal memory record(s). No tool actions or approval gates triggered.",
-            citedMemoryIds=cited_ids,
+            thoughtTrace=result.get("thought_trace", ""),
+            citedMemoryIds=result.get("cited_memory_ids", []),
             relatedTaskId=None,
             actionProposal=None,
+            intent=result.get("intent"),
+            evidence=result.get("evidence"),
+            retrievalStatus=result.get("retrieval_status"),
+            sessionId=session_id,
         )
 
     # Imperative task mode with real side-effects
@@ -370,6 +284,9 @@ async def dispatch_chat_message(req: ChatMessageRequest):
             )
             break
 
+    context = query_relevant_context(prompt, memory_service=SubsystemContainer.memory_service)
+    cited_ids = context.get("cited_memory_ids", [])
+
     return ChatMessageResponse(
         id=f"msg-{int(time.time() * 1000)}",
         role="agent",
@@ -379,6 +296,8 @@ async def dispatch_chat_message(req: ChatMessageRequest):
         citedMemoryIds=cited_ids,
         relatedTaskId=dag.task_id,
         actionProposal=proposal,
+        intent={"intent_category": "complex_task", "sub_intent": "autonomous_workflow"},
+        sessionId=session_id,
     )
 
 
