@@ -71,7 +71,7 @@ class Go81ApiClient {
     const start = performance.now();
     try {
       const controller = new AbortController();
-      const timeoutId = setTimeout(() => controller.abort(), 1500);
+      const timeoutId = setTimeout(() => controller.abort(), 5000);
 
       const res = await fetch(`${this.baseUrl}/health`, {
         signal: controller.signal,
@@ -105,7 +105,7 @@ class Go81ApiClient {
   async getModelHealth(): Promise<ApiResponse<ModelHealth>> {
     try {
       const controller = new AbortController();
-      const timeoutId = setTimeout(() => controller.abort(), 3000);
+      const timeoutId = setTimeout(() => controller.abort(), 10000);
       const res = await fetch(`${this.baseUrl}/api/model/health`, {
         signal: controller.signal,
         cache: 'no-store',
@@ -139,7 +139,7 @@ class Go81ApiClient {
   async getRuntimeStatus(): Promise<ApiResponse<AgentRuntimeStatus>> {
     try {
       const controller = new AbortController();
-      const timeoutId = setTimeout(() => controller.abort(), 3000);
+      const timeoutId = setTimeout(() => controller.abort(), 10000);
       const res = await fetch(`${this.baseUrl}/api/agent/status`, {
         signal: controller.signal,
         cache: 'no-store',

@@ -44,12 +44,20 @@ export const TopNav: React.FC<TopNavProps> = ({
   const isDegraded = isBackendOnline && (
     modelHealth?.status === 'degraded' ||
     runtimeStatus?.ollamaStatus === 'degraded' ||
-    (modelHealth && !modelHealth.loaded)
+    modelHealth?.inference_successful === false
   );
 
   const isHealthy = isBackendOnline && !isDegraded;
-  const dotColor = isHealthy ? 'bg-emerald-500 animate-pulse' : 'bg-[#ea580c]';
-  const tooltipText = isHealthy ? 'Backend Connected' : 'Backend Disconnected';
+  const dotColor = !isBackendOnline
+    ? 'bg-[#ea580c]'
+    : isDegraded
+    ? 'bg-amber-400'
+    : 'bg-emerald-500 animate-pulse';
+  const tooltipText = !isBackendOnline
+    ? 'Backend Disconnected'
+    : isDegraded
+    ? 'Service Degraded'
+    : 'Backend Connected';
 
   return (
     <header className="relative h-12 w-full border-b border-[var(--border-subtle)] bg-[var(--bg-surface)] px-4 flex items-center justify-between select-none z-30 shrink-0">
@@ -154,6 +162,7 @@ export const TopNav: React.FC<TopNavProps> = ({
             type="button"
             onClick={onRefreshHealth}
             aria-label={tooltipText}
+            title={tooltipText}
             className="p-1.5 flex items-center justify-center cursor-pointer focus:outline-none focus-visible:ring-1 focus-visible:ring-[#ea580c] rounded"
           >
             <span className={`w-2 h-2 rounded-full transition-all duration-300 ${dotColor}`} />

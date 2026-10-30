@@ -53,7 +53,7 @@ def probe_model_health(
     model: Optional[str] = None,
     memory_service: Optional[Any] = None,
     db: Optional[Any] = None,
-    timeout: float = 4.5,
+    timeout: float = 8.0,
     test_inference: bool = True,
     client: Optional[httpx.Client] = None,
 ) -> ModelHealthReport:

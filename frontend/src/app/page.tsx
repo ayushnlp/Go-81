@@ -110,19 +110,20 @@ export default function CommandCenterPage() {
   const probeHealth = useCallback(async () => {
     setIsCheckingBackend(true);
     try {
-      const [health, model, status, taskRes, appRes] = await Promise.all([
-        api.checkHealth(),
+      const health = await api.checkHealth();
+      setIsBackendOnline(health.online);
+
+      const results = await Promise.allSettled([
         api.getModelHealth(),
         api.getRuntimeStatus(),
         api.getTasks(),
         api.getApprovals(),
       ]);
 
-      setIsBackendOnline(health.online);
-      setModelHealth(model.data);
-      setRuntimeStatus(status.data);
-      setTasks(taskRes.data || []);
-      setPendingApprovals(appRes.data || []);
+      if (results[0].status === 'fulfilled') setModelHealth(results[0].value.data);
+      if (results[1].status === 'fulfilled') setRuntimeStatus(results[1].value.data);
+      if (results[2].status === 'fulfilled') setTasks(results[2].value.data || []);
+      if (results[3].status === 'fulfilled') setPendingApprovals(results[3].value.data || []);
     } catch {
       setIsBackendOnline(false);
     } finally {

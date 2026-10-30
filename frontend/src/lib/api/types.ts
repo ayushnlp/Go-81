@@ -271,4 +271,11 @@ export interface ModelHealth {
   context_length?: number;
   quantization?: string;
   loaded?: boolean;
+  online?: boolean;
+  ollama_reachable?: boolean;
+  model_present?: boolean;
+  inference_successful?: boolean;
+  memory_available?: boolean;
+  ollama_status?: string;
+  failure_reason?: string | null;
 }
