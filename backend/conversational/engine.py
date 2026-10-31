@@ -219,12 +219,16 @@ class IntelligentConversationalEngine:
                 llm_response = self._invoke_ollama_chat(
                     prompt=resolved_prompt,
                     system_override=(
-                        "You are Go 81's Sovereign Personal Assistant. "
-                        "Answer the user's question accurately using their verified personal memories:\n"
+                        "You are Go 81's Sovereign Personal Assistant.\n"
+                        "Answer the user's question accurately using only their verified personal memories:\n"
                         f"{memory_text}\n\n"
-                        "Important: Always preserve and state the exact terminology, names, and values of the user's preferences, goals, and decisions verbatim as recorded."
+                        "Mandatory instructions:\n"
+                        "1. State the user's recorded preferences, goals, and values verbatim as recorded.\n"
+                        "2. Never omit, shorten, or truncate compound/composite specifications (for example, if the preference states 'zsh with starship', state 'zsh with starship', do not say only 'zsh').\n"
+                        "3. Keep the answer direct and concise."
                     ),
                     session_id=sid,
+                    temperature=0.0,
                 )
                 if llm_response:
                     content = llm_response
@@ -296,6 +300,7 @@ class IntelligentConversationalEngine:
         prompt: str,
         system_override: str,
         session_id: str,
+        temperature: float = 0.2,
     ) -> Optional[str]:
         """Invokes local Ollama chat API with bounded session context and strict timeout."""
         try:
@@ -316,7 +321,7 @@ class IntelligentConversationalEngine:
 
                 res = client.chat(
                     messages=messages,
-                    options={"temperature": 0.2},
+                    options={"temperature": temperature},
                     timeout=self.conversational_timeout,
                 )
                 if res.content and res.content.strip():

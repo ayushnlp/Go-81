@@ -51,6 +51,14 @@ The command center will be available at [`http://localhost:3000`](http://localho
 ### Offline Staging Preview
 If the FastAPI backend at `http://127.0.0.1:8000` is offline or still starting up, the frontend automatically falls back to isolated demonstration fixtures with an honest, prominent status banner. You can inspect all screens, audit memory runes, and interact with the approval gates without crashes.
 
+### Network Architecture & Ports
+- **Frontend (Canonical)**: `http://localhost:3000`
+- **Backend (FastAPI)**: `http://127.0.0.1:8000`
+- **Local Ollama Daemon**: `http://127.0.0.1:11434`
+- **Optional Compatibility Proxy**: `http://127.0.0.1:3001` (via `node scripts/proxy_3001.js`, forwards to port 3000)
+
+See [`docs/network_and_ports.md`](docs/network_and_ports.md) for full network topology, port documentation, and troubleshooting.
+
 ---
 
 ## 📂 Repository Structure

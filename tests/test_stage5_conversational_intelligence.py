@@ -215,6 +215,57 @@ def test_training_cutoff_disclosure(client):
     content = resp.json()["content"]
     assert "cutoff" in content.lower()
     assert "sovereign offline mode" in content.lower() or "offline" in content.lower()
+    assert "december 2023" in content.lower()
+
+
+def test_training_cutoff_explicit_metadata_vs_unverified():
+    """Stage 5.1 Hardening: Explicit model metadata cited for Llama 3.2 vs unverified for unknown models."""
+    kg = KnowledgeGuard()
+    llama_disclosure = kg.get_model_capability_disclosure("llama3.2:3b")
+    assert "December 2023" in llama_disclosure
+    assert "Meta's official model metadata" in llama_disclosure
+
+    custom_disclosure = kg.get_model_capability_disclosure("custom-finetune:latest")
+    assert "unverified" in custom_disclosure.lower()
+
+
+def test_baahubali_provenance_metadata_structure(client):
+    """Stage 5.1 Hardening: Structured typed provenance metadata emitted in evidence field."""
+    resp = client.post(
+        "/api/agent/chat",
+        json={"prompt": "What is the worldwide collection of Baahubali 2?"},
+    )
+    assert resp.status_code == 200
+    data = resp.json()
+    evidence = data.get("evidence", [])
+    assert len(evidence) >= 2
+
+    # Verified historical trade record
+    trade_close = next((e for e in evidence if e.get("record_type") == "source_derived_historical_trade"), None)
+    assert trade_close is not None
+    assert "Box Office India" in trade_close["source"]
+    assert "india_nett" in trade_close["metrics"]
+    assert "₹1,030.50" in trade_close["metrics"]["india_nett"]
+
+    # Curated aggregate estimate
+    curated_est = next((e for e in evidence if e.get("record_type") == "dated_curated_estimate"), None)
+    assert curated_est is not None
+    assert "overseas_gross" in curated_est["metrics"]
+    assert "worldwide_gross" in curated_est["metrics"]
+
+
+def test_unverified_movie_collection_honest_disclosure(client):
+    """Stage 5.1 Hardening: Uncurated titles honestly disclose absence of local dataset."""
+    resp = client.post(
+        "/api/agent/chat",
+        json={"prompt": "What is the box office collection of Inception?"},
+    )
+    assert resp.status_code == 200
+    data = resp.json()
+    assert "do not possess a verified local dataset" in data["content"]
+    assert "Inception" in data["content"]
+    assert len(data.get("evidence", [])) >= 1
+    assert data["evidence"][0].get("status") == "unverified_unavailable"
 
 
 # ============================================================================

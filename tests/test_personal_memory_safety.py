@@ -270,6 +270,45 @@ def test_conversational_questions_never_trigger_tools(isolated_env):
     assert any(s.risk_level == RiskLevel.HIGH and s.requires_approval is True for s in task_dag.steps)
 
 
+def test_memory_retrieval_layer_preserves_compound_specifications(isolated_env):
+    """Deterministic test verifying memory service retrieval preserves composite specifications verbatim."""
+    service: MemoryService = isolated_env["service"]
+
+    mem = service.store_memory(
+        category=SemanticCategory.PREFERENCE,
+        subject="cli",
+        predicate="shell",
+        object_value="zsh with starship",
+        source_ref="user",
+    )
+
+    ctx = service.query_relevant_context("What shell do I prefer?")
+    assert ctx["memory_available"] is True
+    assert len(ctx["preferences"]) >= 1
+    pref = next((p for p in ctx["preferences"] if p["subject"] == "cli"), None)
+    assert pref is not None
+    assert pref["object_value"] == "zsh with starship"
+    assert mem.id in ctx["cited_memory_ids"]
+
+
+def test_memory_context_formatting_layer_preserves_compound_specifications(isolated_env):
+    """Deterministic test verifying the context-injection formatting layer preserves composite specifications."""
+    service: MemoryService = isolated_env["service"]
+
+    service.store_memory(
+        category=SemanticCategory.PREFERENCE,
+        subject="cli",
+        predicate="shell",
+        object_value="zsh with starship",
+        source_ref="user",
+    )
+
+    ctx = service.query_relevant_context("What shell do I prefer?")
+    formatted = ctx["formatted_context"]
+    assert "zsh with starship" in formatted
+    assert "USER PREFERENCES:" in formatted
+
+
 def test_chat_api_endpoint_conversational_safety(isolated_env):
     service: MemoryService = isolated_env["service"]
 
