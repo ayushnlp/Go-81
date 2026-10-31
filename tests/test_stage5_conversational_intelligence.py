@@ -188,6 +188,7 @@ def test_baahubali_daywise_and_worldwide_followup(client):
     assert "1,788" in content2 or "1,810" in content2
     assert "Sacnilk" in content2
     assert "Box Office India" in content2
+    assert "22.535" in content2 or "22.54" in content2
 
 
 def test_katappa_canon_plot_explanation(client):
@@ -254,6 +255,7 @@ def test_baahubali_provenance_metadata_structure(client):
     boi_rec = next((e for e in evidence if "Box Office India" in e.get("source_title", "")), None)
     assert boi_rec is not None
     assert "boxofficeindia.com" in boi_rec["source_url"]
+    assert "top-grossers-all-formats-worldwide-gross.php" in boi_rec["source_url"]
     assert "trade_estimate" in boi_rec["verification_status"]
     assert "1,810.595" in boi_rec["figures"]["worldwide_gross"]
 

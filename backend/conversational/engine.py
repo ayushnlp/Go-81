@@ -83,7 +83,7 @@ class IntelligentConversationalEngine:
         # Step 1: Multi-turn reference resolution
         ref_resolution = self.session_manager.resolve_references(raw_prompt, sid)
         resolved_prompt = ref_resolution["resolved_prompt"]
-        active_entity = ref_resolution["entity"]
+        active_entity = ref_resolution["entity"] if ref_resolution.get("was_resolved") else None
 
         # Retrieve session context for classifier
         session_state = self.session_manager.get_or_create_session(sid)
@@ -224,23 +224,49 @@ class IntelligentConversationalEngine:
                         f"{memory_text}\n\n"
                         "Mandatory instructions:\n"
                         "1. State the user's recorded preferences, goals, and values verbatim as recorded.\n"
-                        "2. Never omit, shorten, or truncate compound/composite specifications (for example, if the preference states 'zsh with starship', state 'zsh with starship', do not say only 'zsh').\n"
+                        "2. Never omit, shorten, or truncate compound/composite specifications (for example, if a record states multiple components or specifications, preserve all details verbatim; do not shorten).\n"
                         "3. Keep the answer direct and concise."
                     ),
                     session_id=sid,
                     temperature=0.0,
                 )
                 if llm_response:
-                    # Deterministic fact-preservation verification:
-                    # Verify that composite specifications (e.g. 'zsh with starship') survive into the response.
-                    # If model generation omitted any recorded detail, enforce fact preservation deterministically.
+                    # Generic deterministic fact-preservation verification:
+                    # Dynamically verifies that relevant composite specifications from retrieved verified facts survive into the response.
+                    # Includes negative controls to ensure unrelated preferences or unqueried facts are never injected.
                     omitted_details = []
+                    resp_lower = llm_response.lower()
+                    prompt_lower = raw_prompt.lower()
+
                     for group_key in ("preferences", "relevant_goals", "prior_decisions", "verified_facts"):
                         for item in memory_context.get(group_key, []):
                             val = str(item.get("object_value", "")).strip()
-                            if val and val.lower() not in llm_response.lower():
-                                tokens = [t for t in re.split(r"\s+(?:with|and|&|\+)\s+|\s+", val.lower()) if len(t) > 2]
-                                if any(t not in llm_response.lower() for t in tokens):
+                            if not val:
+                                continue
+                            val_lower = val.lower()
+                            if val_lower in resp_lower:
+                                continue
+
+                            subj = str(item.get("subject", "")).lower().strip()
+                            pred = str(item.get("predicate", "")).lower().strip()
+
+                            # Extract constituent parts separated by conjunctions: "with", "and", "&", "+", or commas
+                            parts = [p.strip() for p in re.split(r"\s+(?:with|and|&|\+)\s+|,\s*", val_lower) if len(p.strip()) > 1]
+
+                            # Relevance check (Negative Control):
+                            # The record must be actively relevant to the user prompt or model response
+                            # (subject, predicate, or at least one constituent part is mentioned).
+                            is_relevant = (
+                                (subj and (subj in prompt_lower or subj in resp_lower))
+                                or (pred and (pred in prompt_lower or pred in resp_lower))
+                                or any(p in resp_lower or p in prompt_lower for p in parts)
+                            )
+                            if not is_relevant:
+                                continue
+
+                            # If any constituent detail of this relevant memory was omitted from the response, preserve it
+                            if any(p not in resp_lower for p in parts):
+                                if val not in omitted_details:
                                     omitted_details.append(val)
 
                     if omitted_details:

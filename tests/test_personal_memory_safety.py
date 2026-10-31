@@ -366,6 +366,92 @@ def test_repeated_memory_recall_requests_consistency(isolated_env):
             assert data["actionProposal"] is None
 
 
+def test_generic_compound_memory_preservation_and_negative_controls(isolated_env):
+    """
+    Stage 5.1 Acceptance Audit: Verifies generic dynamic preservation of compound memory facts
+    across multiple distinct domains (CLI, editor, browser) with strict negative controls
+    verifying that unrelated memories are never injected into answers.
+    """
+    service: MemoryService = isolated_env["service"]
+
+    # 1. Store three distinct compound specifications in the memory vault
+    service.store_memory(
+        category=SemanticCategory.PREFERENCE,
+        subject="cli",
+        predicate="shell",
+        object_value="zsh with starship",
+        source_ref="user_profile",
+    )
+    service.store_memory(
+        category=SemanticCategory.PREFERENCE,
+        subject="editor",
+        predicate="theme",
+        object_value="dracula with green accents",
+        source_ref="user_profile",
+    )
+    service.store_memory(
+        category=SemanticCategory.PREFERENCE,
+        subject="browser",
+        predicate="default",
+        object_value="firefox with ublock origin",
+        source_ref="user_profile",
+    )
+
+    with TestClient(app) as client:
+        # Case 1: Query shell preference
+        res_shell = client.post(
+            "/api/agent/chat",
+            json={"prompt": "What shell do I prefer?", "mode": "chat", "session_id": "sess-generic-shell"}
+        )
+        assert res_shell.status_code == 200
+        data_shell = res_shell.json()
+        shell_content = data_shell["content"].lower()
+        # Must preserve both constituent parts of shell preference
+        assert "starship" in shell_content and ("zsh" in shell_content or "z shell" in shell_content), (
+            f"Expected compound 'zsh with starship', got: {data_shell['content']}"
+        )
+        # Negative Controls: Must NOT mention editor theme or browser preferences
+        assert "dracula" not in shell_content, "Negative control failure: unrelated 'dracula' injected into shell query"
+        assert "green accents" not in shell_content, "Negative control failure: unrelated 'green accents' injected"
+        assert "firefox" not in shell_content, "Negative control failure: unrelated 'firefox' injected into shell query"
+        assert "ublock" not in shell_content, "Negative control failure: unrelated 'ublock' injected into shell query"
+
+        # Case 2: Query editor theme preference
+        res_editor = client.post(
+            "/api/agent/chat",
+            json={"prompt": "What editor theme do I prefer?", "mode": "chat", "session_id": "sess-generic-editor"}
+        )
+        assert res_editor.status_code == 200
+        data_editor = res_editor.json()
+        editor_content = data_editor["content"].lower()
+        # Must preserve both constituent parts of editor theme
+        assert "dracula" in editor_content and "green accents" in editor_content, (
+            f"Expected compound 'dracula with green accents', got: {data_editor['content']}"
+        )
+        # Negative Controls: Must NOT mention shell or browser preferences
+        assert "starship" not in editor_content, "Negative control failure: unrelated 'starship' injected into editor query"
+        assert "zsh" not in editor_content, "Negative control failure: unrelated 'zsh' injected into editor query"
+        assert "firefox" not in editor_content, "Negative control failure: unrelated 'firefox' injected into editor query"
+        assert "ublock" not in editor_content, "Negative control failure: unrelated 'ublock' injected into editor query"
+
+        # Case 3: Query browser preference
+        res_browser = client.post(
+            "/api/agent/chat",
+            json={"prompt": "Which browser do I prefer?", "mode": "chat", "session_id": "sess-generic-browser"}
+        )
+        assert res_browser.status_code == 200
+        data_browser = res_browser.json()
+        browser_content = data_browser["content"].lower()
+        # Must preserve both constituent parts of browser preference
+        assert "firefox" in browser_content and "ublock origin" in browser_content, (
+            f"Expected compound 'firefox with ublock origin', got: {data_browser['content']}"
+        )
+        # Negative Controls: Must NOT mention shell or editor preferences
+        assert "starship" not in browser_content, "Negative control failure: unrelated 'starship' injected into browser query"
+        assert "dracula" not in browser_content, "Negative control failure: unrelated 'dracula' injected into browser query"
+        assert "green accents" not in browser_content, "Negative control failure: unrelated 'green accents' injected"
+
+
 # ============================================================================
 # Requirement 6: Approval lifecycle (pending -> approved -> consumed / rejected)
 # ============================================================================

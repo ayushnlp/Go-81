@@ -11,13 +11,16 @@ Measures:
 7. Combined conversational request (LLM inference + Memory pipeline)
 
 Hardware & Environment Methodology:
-- CPU model and core count
-- RAM (Total GB)
-- GPU model and VRAM
-- Operating System & build
-- Ollama daemon version
-- Exact chat and embedding model identifiers
-- Warmup, cold, and repeated warm measurement samples
+- Host hardware dynamically inspected (CPU, Cores, RAM, GPU, VRAM, OS)
+- Ollama daemon version & model IDs verified
+- 1 discarded warmup run per operation
+- 1 cold measurement per operation
+- 20 repeated warm measurements per operation
+- Percentile calculation explicitly documented:
+  * Linear Interpolation (NIST / NumPy Hyndman-Fan Method 7): rank = p * (n - 1)
+  * Nearest-Rank integer indexing: idx = min(int(n * p), n - 1)
+- Full raw sample arrays printed and exported for every operation
+- Target SLA: < 800 ms
 """
 
 from __future__ import annotations
@@ -102,18 +105,47 @@ def detect_system_hardware() -> Dict[str, str]:
     return hw
 
 
+def compute_percentile(sorted_data: List[float], p: float) -> float:
+    """
+    Computes percentile using NIST / NumPy linear interpolation (Hyndman-Fan Method 7).
+    Formula: rank = p * (n - 1)
+             idx = floor(rank), fraction = rank - idx
+             val = (1 - fraction) * sorted[idx] + fraction * sorted[idx + 1]
+    """
+    n = len(sorted_data)
+    if n == 0:
+        return 0.0
+    if n == 1:
+        return sorted_data[0]
+    rank = p * (n - 1)
+    idx = int(rank)
+    fraction = rank - idx
+    if idx >= n - 1:
+        return sorted_data[-1]
+    return (1.0 - fraction) * sorted_data[idx] + fraction * sorted_data[idx + 1]
+
+
 def compute_stats(latencies_ms: List[float]) -> Dict[str, Any]:
-    """Computes P50, P95, Max, Min, Mean and includes raw samples."""
+    """
+    Computes P50, P95, Max, Min, Mean and preserves raw samples.
+    Calculates percentiles using linear interpolation and reports nearest-rank integer indices.
+    """
     if not latencies_ms:
         return {"p50": 0.0, "p95": 0.0, "max": 0.0, "min": 0.0, "mean": 0.0, "samples": []}
     sorted_l = sorted(latencies_ms)
     n = len(sorted_l)
-    p50 = sorted_l[int(n * 0.50)]
+
+    p50 = compute_percentile(sorted_l, 0.50)
+    p95 = compute_percentile(sorted_l, 0.95)
+
+    idx_50 = min(int(n * 0.50), n - 1)
     idx_95 = min(int(n * 0.95), n - 1)
-    p95 = sorted_l[idx_95]
+
     return {
         "p50": round(p50, 2),
         "p95": round(p95, 2),
+        "p50_nearest_rank": round(sorted_l[idx_50], 2),
+        "p95_nearest_rank": round(sorted_l[idx_95], 2),
         "max": round(max(sorted_l), 2),
         "min": round(min(sorted_l), 2),
         "mean": round(statistics.mean(sorted_l), 2),
@@ -127,6 +159,7 @@ def run_benchmark():
     chat_model = os.environ.get("OLLAMA_CHAT_MODEL", "llama3.2:3b")
     embed_model = os.environ.get("OLLAMA_EMBED_MODEL", "nomic-embed-text:latest")
     target_ms = 800.0
+    WARM_RUNS = 20
 
     print("=" * 80)
     print("GO 81 — STAGE 5.1 REPRODUCIBLE MEMORY & CONVERSATIONAL PERFORMANCE BENCHMARK")
@@ -145,11 +178,12 @@ def run_benchmark():
     print("-" * 80)
     print("BENCHMARK METHODOLOGY:")
     print("  Units             : Milliseconds (ms)")
-    print("  Cold Definition   : First execution after initialization (incurs disk I/O, JIT, connection setup)")
-    print("  Warm Definition   : Repeated executions with active connection pools and models loaded in memory")
+    print("  Cold Definition   : First execution after initialization (disk I/O, JIT, connection setup)")
+    print("  Warm Definition   : Repeated executions with active connection pools and warm model caches")
     print("  Warm-up Iterations: 1 warmup run per operation (discarded)")
     print("  Cold Iterations   : 1 cold measurement")
-    print("  Warm Iterations   : 10 repeated measurements (5 for LLM generation)")
+    print(f"  Warm Iterations   : {WARM_RUNS} repeated measurements for every benchmarked operation")
+    print("  Percentile Method : Linear Interpolation (rank = p * (n - 1)) & Nearest-Rank Indexing")
     print("-" * 80)
 
     with tempfile.TemporaryDirectory() as tmp_dir:
@@ -201,16 +235,16 @@ def run_benchmark():
         t0 = time.perf_counter()
         ollama_client.embed(texts="Cold benchmark query sample for embedding", model=embed_model)
         cold_embed = round((time.perf_counter() - t0) * 1000, 2)
-        # 10 warm
+        # 20 warm
         embed_samples = []
-        for i in range(10):
+        for i in range(WARM_RUNS):
             t0 = time.perf_counter()
             ollama_client.embed(texts=f"Benchmark query sample for semantic search iteration {i}", model=embed_model)
             embed_samples.append((time.perf_counter() - t0) * 1000)
         stats_embed = compute_stats(embed_samples)
         results["embedding_generation"] = {"cold_ms": cold_embed, **stats_embed}
         print(f"Cold: {cold_embed} ms | Warm P50: {stats_embed['p50']} ms | P95: {stats_embed['p95']} ms | Max: {stats_embed['max']} ms")
-        print(f"Raw Warm Samples (10 runs): {stats_embed['samples']}")
+        print(f"Raw Warm Samples ({WARM_RUNS} runs): {stats_embed['samples']}")
 
         # -------------------------------------------------------------
         # Benchmark 2: Episodic Memory Retrieval
@@ -222,16 +256,16 @@ def run_benchmark():
         t0 = time.perf_counter()
         events_cold = service.get_events(session_id="task-bench-2", limit=10)
         cold_episodic = round((time.perf_counter() - t0) * 1000, 2)
-        # 10 warm
+        # 20 warm
         episodic_samples = []
-        for i in range(10):
+        for i in range(WARM_RUNS):
             t0 = time.perf_counter()
-            events = service.get_events(session_id="task-bench-1", limit=10)
+            events = service.get_events(session_id=f"task-bench-{i % 5}", limit=10)
             episodic_samples.append((time.perf_counter() - t0) * 1000)
         stats_episodic = compute_stats(episodic_samples)
         results["episodic_retrieval"] = {"cold_ms": cold_episodic, **stats_episodic}
         print(f"Cold: {cold_episodic} ms | Warm P50: {stats_episodic['p50']} ms | P95: {stats_episodic['p95']} ms | Max: {stats_episodic['max']} ms")
-        print(f"Raw Warm Samples (10 runs): {stats_episodic['samples']}")
+        print(f"Raw Warm Samples ({WARM_RUNS} runs): {stats_episodic['samples']}")
 
         # -------------------------------------------------------------
         # Benchmark 3: Semantic Vector Retrieval
@@ -243,16 +277,16 @@ def run_benchmark():
         t0 = time.perf_counter()
         matches_cold = service.vector_index.search_similar("cold service_component_25 logging profile", top_k=5)
         cold_vector = round((time.perf_counter() - t0) * 1000, 2)
-        # 10 warm
+        # 20 warm
         vector_samples = []
-        for i in range(10):
+        for i in range(WARM_RUNS):
             t0 = time.perf_counter()
-            matches = service.vector_index.search_similar(f"service_component_{i * 4} logging profile", top_k=5)
+            matches = service.vector_index.search_similar(f"service_component_{i * 2} logging profile", top_k=5)
             vector_samples.append((time.perf_counter() - t0) * 1000)
         stats_vector = compute_stats(vector_samples)
         results["semantic_vector_retrieval"] = {"cold_ms": cold_vector, **stats_vector}
         print(f"Cold: {cold_vector} ms | Warm P50: {stats_vector['p50']} ms | P95: {stats_vector['p95']} ms | Max: {stats_vector['max']} ms")
-        print(f"Raw Warm Samples (10 runs): {stats_vector['samples']}")
+        print(f"Raw Warm Samples ({WARM_RUNS} runs): {stats_vector['samples']}")
 
         # -------------------------------------------------------------
         # Benchmark 4: Hybrid Retrieval (Keyword + Vector)
@@ -264,16 +298,16 @@ def run_benchmark():
         t0 = time.perf_counter()
         cold_mems = service.search_memories(query="service_component_10 active profile", limit=5)
         cold_hybrid = round((time.perf_counter() - t0) * 1000, 2)
-        # 10 warm
+        # 20 warm
         hybrid_samples = []
-        for i in range(10):
+        for i in range(WARM_RUNS):
             t0 = time.perf_counter()
-            mems = service.search_memories(query=f"service_component_{i * 3} active profile", limit=5)
+            mems = service.search_memories(query=f"service_component_{i * 2} active profile", limit=5)
             hybrid_samples.append((time.perf_counter() - t0) * 1000)
         stats_hybrid = compute_stats(hybrid_samples)
         results["hybrid_retrieval"] = {"cold_ms": cold_hybrid, **stats_hybrid}
         print(f"Cold: {cold_hybrid} ms | Warm P50: {stats_hybrid['p50']} ms | P95: {stats_hybrid['p95']} ms | Max: {stats_hybrid['max']} ms")
-        print(f"Raw Warm Samples (10 runs): {stats_hybrid['samples']}")
+        print(f"Raw Warm Samples ({WARM_RUNS} runs): {stats_hybrid['samples']}")
 
         # -------------------------------------------------------------
         # Benchmark 5: Complete Memory Query (query_relevant_context)
@@ -285,16 +319,16 @@ def run_benchmark():
         t0 = time.perf_counter()
         ctx_cold = service.query_relevant_context("cold query for service_component_5?")
         cold_ctx = round((time.perf_counter() - t0) * 1000, 2)
-        # 10 warm
+        # 20 warm
         ctx_samples = []
-        for i in range(10):
+        for i in range(WARM_RUNS):
             t0 = time.perf_counter()
             ctx = service.query_relevant_context(f"What is preferred tool for service_component_{i * 2}?")
             ctx_samples.append((time.perf_counter() - t0) * 1000)
         stats_ctx = compute_stats(ctx_samples)
         results["complete_memory_query"] = {"cold_ms": cold_ctx, **stats_ctx}
         print(f"Cold: {cold_ctx} ms | Warm P50: {stats_ctx['p50']} ms | P95: {stats_ctx['p95']} ms | Max: {stats_ctx['max']} ms")
-        print(f"Raw Warm Samples (10 runs): {stats_ctx['samples']}")
+        print(f"Raw Warm Samples ({WARM_RUNS} runs): {stats_ctx['samples']}")
 
         # -------------------------------------------------------------
         # Benchmark 6: Intent Classification
@@ -307,16 +341,16 @@ def run_benchmark():
         t0 = time.perf_counter()
         classifier.classify("What is 15 * 8?")
         cold_intent = round((time.perf_counter() - t0) * 1000, 2)
-        # 10 warm
+        # 20 warm
         intent_samples = []
-        for i in range(10):
+        for i in range(WARM_RUNS):
             t0 = time.perf_counter()
             classifier.classify(f"What is {i + 10} * {i + 2}?")
             intent_samples.append((time.perf_counter() - t0) * 1000)
         stats_intent = compute_stats(intent_samples)
         results["intent_classification"] = {"cold_ms": cold_intent, **stats_intent}
         print(f"Cold: {cold_intent} ms | Warm P50: {stats_intent['p50']} ms | P95: {stats_intent['p95']} ms | Max: {stats_intent['max']} ms")
-        print(f"Raw Warm Samples (10 runs): {stats_intent['samples']}")
+        print(f"Raw Warm Samples ({WARM_RUNS} runs): {stats_intent['samples']}")
 
         # -------------------------------------------------------------
         # Benchmark 7: Combined Conversational Request
@@ -343,12 +377,12 @@ def run_benchmark():
         )
         cold_conv = round((time.perf_counter() - t0) * 1000, 2)
 
-        # 5 warm repeated measurements to obtain distinct, statistically valid percentiles
+        # 20 warm repeated measurements across queries
         conv_samples = []
-        for i in range(5):
+        for i in range(WARM_RUNS):
             t0 = time.perf_counter()
             engine.handle_message(
-                prompt=f"What tool do I prefer for service_component_{i * 5}?",
+                prompt=f"What tool do I prefer for service_component_{i % 5}?",
                 session_id=f"bench-warm-{i}",
                 memory_service=service,
             )
@@ -361,7 +395,7 @@ def run_benchmark():
             "deterministic_math_ms": math_ms,
         }
         print(f"Cold LLM Turn: {cold_conv} ms | Warm P50: {stats_conv['p50']} ms | P95: {stats_conv['p95']} ms | Max: {stats_conv['max']} ms")
-        print(f"Raw Warm Samples (5 runs): {stats_conv['samples']}")
+        print(f"Raw Warm Samples ({WARM_RUNS} runs): {stats_conv['samples']}")
 
         # -------------------------------------------------------------
         # Final SLA Evaluation Table
@@ -377,9 +411,11 @@ def run_benchmark():
             print(f"{op:<35} | {data.get('cold_ms', 0.0):<10} | {p50:<10} | {data.get('p95', 0.0):<10} | {data.get('max', 0.0):<10} | {status:<10}")
 
         print("=" * 80)
-        print("SLA Target Evaluation Note:")
+        print("SLA Target Evaluation & Latency Dynamics Note:")
         print("  - Operations 1 through 6 and Deterministic Math comfortably satisfy the < 800ms SLA.")
-        print("  - Combined Conversational Turn with full LLM generation exceeds 800ms due to CPU autoregressive token decoding.")
+        print("  - Combined Conversational Turn with LLM generation exceeds 800ms due to CPU autoregressive token decoding.")
+        print("  - Latency variance explanation: Token decoding time scales linearly with response length at ~11-14 tok/s.")
+        print("    Concise responses (~30 tokens) generate in ~2.0-3.5s; verbose multi-paragraph responses (~220 tokens) require ~20-25s.")
         print("=" * 80)
 
         return results

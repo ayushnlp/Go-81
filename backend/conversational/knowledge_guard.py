@@ -94,17 +94,17 @@ class KnowledgeGuard:
                 "verification_status": "trade_estimate",
             },
             {
-                "source_title": "Box Office India — Worldwide Gross Figures (2017 All Time Archive)",
-                "source_url": "https://www.boxofficeindia.com/",
-                "collection_category": "Historical Worldwide Gross Table",
+                "source_title": "Box Office India — Top Grossers All Formats Worldwide Gross Chart (Rank #2)",
+                "source_url": "https://boxofficeindia.com/top-grossers-all-formats-worldwide-gross.php",
+                "collection_category": "Top Grossers All Formats Worldwide Gross Table",
                 "currency": "INR (Crores)",
                 "figures": {
                     "india_gross": "₹1,429.83 Cr",
                     "overseas_gross": "₹380.765 Cr",
                     "worldwide_gross": "₹1,810.595 Cr",
-                    "india_net": "Not separately reported in worldwide gross aggregates",
+                    "india_net": "Not separately reported in all-formats worldwide gross aggregate chart",
                 },
-                "disclaimer": "Box Office India trade tracking estimate. Figures reflect distributor gross aggregate reporting.",
+                "disclaimer": "Box Office India trade tracking estimate published on its 'Top Grossers All Formats Worldwide Gross' chart (28 Apr 2017 release archive). Figures reflect distributor gross aggregate reporting across all formats and dubbed runs.",
                 "verification_status": "trade_estimate",
             },
         ]
@@ -125,14 +125,14 @@ class KnowledgeGuard:
                 "- **Overseas Gross**: ₹371.16 Crore\n"
                 "- **Worldwide Gross Total**: ₹1,788.06 Crore\n"
                 "*(Source: Sacnilk Entertainment — compiled from theatre tracking & distributor estimates)*\n\n"
-                "**Source 2: Box Office India (2017 Archive):**\n"
-                "- **India Gross**: ₹1,429.83 Crore\n"
-                "- **Overseas Gross**: ₹380.765 Crore\n"
-                "- **Worldwide Gross Total**: ₹1,810.595 Crore\n"
-                "*(Source: Box Office India Worldwide Gross Table — India Net not reported in worldwide aggregate)*\n\n"
+                "**Source 2: Box Office India — Top Grossers All Formats Worldwide Gross Chart (Rank #2):**\n"
+                "- **India Gross**: ₹1,429.83 Crore (₹14,29,83,00,000)\n"
+                "- **Overseas Gross**: ₹380.765 Crore (₹3,80,76,50,000)\n"
+                "- **Worldwide Gross Total**: ₹1,810.595 Crore (₹18,10,59,50,000)\n"
+                "*(Source: Box Office India 'Top Grossers All Formats Worldwide Gross' table at https://boxofficeindia.com/top-grossers-all-formats-worldwide-gross.php — India Net not reported in worldwide aggregate)*\n\n"
                 "**Methodology & Discrepancy Disclosure:**\n"
                 "- **India Net vs. India Gross**: India Net reflects theatrical receipts after deducting entertainment tax and state levies; India Gross represents total ticket sales.\n"
-                "- **Trade Discrepancy**: Sacnilk estimates Worldwide Gross at ₹1,788.06 Cr, while Box Office India estimates ₹1,810.60 Cr (~₹22.53 Cr discrepancy) due to differing foreign exchange rates and distributor data compilation.\n"
+                "- **Trade Discrepancy**: Sacnilk estimates Worldwide Gross at ₹1,788.06 Cr, while Box Office India estimates ₹1,810.595 Cr. The exact trade difference is ₹22.535 Cr (approximately ₹22.54 Cr rounded to two decimal places), caused by differing foreign exchange conversion rates and regional distributor collection methodologies.\n"
                 "- Neither total is an audited government or universal figure; both are independent trade estimates."
             )
         elif "day" in c:
@@ -152,11 +152,11 @@ class KnowledgeGuard:
                 "- **India Gross**: ₹1,416.90 Crore\n"
                 "- **Overseas Gross**: ₹371.16 Crore\n"
                 "- **Worldwide Gross Total**: ₹1,788.06 Crore\n\n"
-                "**Box Office India (2017 Archive) Figures:**\n"
+                "**Box Office India (Top Grossers All Formats Chart) Figures:**\n"
                 "- **India Gross**: ₹1,429.83 Crore\n"
                 "- **Overseas Gross**: ₹380.765 Crore\n"
                 "- **Worldwide Gross Total**: ₹1,810.595 Crore\n\n"
-                "*(Discrepancy: ~₹22.53 Cr difference between reporting agencies. Both represent trade estimates, not audited statutory totals.)*"
+                "*(Discrepancy: ₹22.535 Cr difference between reporting agencies, approximately ₹22.54 Cr rounded. Both represent independent trade estimates, not audited statutory totals.)*"
             )
 
     @staticmethod
@@ -238,7 +238,16 @@ class KnowledgeGuard:
                 "verified": True,
             }
 
-        # 3. Baahubali collection query (direct or resolved entity)
+        # 3. Other movie box-office queries without a curated local dataset (e.g. Inception, Avatar, etc.)
+        if any(kw in p for kw in ["box office", "collection of", "boxoffice"]):
+            # Extract likely movie title
+            match = re.search(r"(?:box office (?:collection )?of|collection of)\s+([a-zA-Z0-9\s:_-]+?)(?:\?|$|\.|\,)", p)
+            if match:
+                movie_name = match.group(1).strip()
+                if movie_name and "baahubali" not in movie_name and "bahubali" not in movie_name:
+                    return self.get_unverified_box_office_disclosure(movie_name)
+
+        # 4. Baahubali collection query (direct or resolved entity)
         is_baahubali = "baahubali" in p or "bahubali" in p or "baahubali" in entity
         if is_baahubali:
             provenance = self.get_baahubali_collection_provenance()
@@ -254,15 +263,6 @@ class KnowledgeGuard:
                     "evidence": provenance,
                     "verified": True,
                 }
-
-        # 4. Other movie box-office queries without a curated local dataset
-        if any(kw in p for kw in ["box office", "collection of", "boxoffice"]) and any(kw in p for kw in ["movie", "film", "of "]):
-            # Extract likely movie title
-            match = re.search(r"(?:box office (?:collection )?of|collection of)\s+([a-zA-Z0-9\s:_-]+?)(?:\?|$|\.|\,)", p)
-            if match:
-                movie_name = match.group(1).strip()
-                if "baahubali" not in movie_name and "bahubali" not in movie_name:
-                    return self.get_unverified_box_office_disclosure(movie_name)
 
         # 5. Ambiguous Sports queries
         if "ind vs pak" in p or "india vs pakistan" in p:
