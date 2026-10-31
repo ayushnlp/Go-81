@@ -338,6 +338,34 @@ def test_chat_api_endpoint_conversational_safety(isolated_env):
         assert data["relatedTaskId"] is None
 
 
+def test_repeated_memory_recall_requests_consistency(isolated_env):
+    """Stage 5.1 Hardening: Verifies repeated memory-recall queries deterministically preserve compound details."""
+    service: MemoryService = isolated_env["service"]
+
+    service.store_memory(
+        category=SemanticCategory.PREFERENCE,
+        subject="cli",
+        predicate="shell",
+        object_value="zsh with starship",
+        source_ref="user",
+    )
+
+    with TestClient(app) as client:
+        for i in range(3):
+            res = client.post(
+                "/api/agent/chat",
+                json={"prompt": "What shell do I prefer?", "mode": "chat", "session_id": f"sess-repeat-{i}"}
+            )
+            assert res.status_code == 200
+            data = res.json()
+            content_lower = data["content"].lower()
+            assert "starship" in content_lower and ("zsh" in content_lower or "z shell" in content_lower), (
+                f"Iteration {i} failed to preserve composite detail 'starship': {data['content']}"
+            )
+            assert len(data["citedMemoryIds"]) >= 1
+            assert data["actionProposal"] is None
+
+
 # ============================================================================
 # Requirement 6: Approval lifecycle (pending -> approved -> consumed / rejected)
 # ============================================================================

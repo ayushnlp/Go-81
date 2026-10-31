@@ -1,10 +1,10 @@
 """
 Factual Verification and Hallucination Prevention Guard for Project Go 81.
-Stage 5 Factual Accuracy & Stage 5.1 Hardening:
-- Grounded responses for movies, entertainment, sports, and system capabilities
-- Transparent disclosure of training cutoff citing explicit model metadata (December 2023 for Llama 3.2) or unverified disclosure
-- Structured box-office provenance: separating source-derived verified figures (India Nett/Gross theatrical close) from dated curated estimates (Overseas/Worldwide Gross)
-- Typed provenance metadata emitted in evidence fields
+Stage 5 Factual Accuracy & Stage 5.1 Evidence Correction:
+- Independent multi-source box-office provenance: separating Sacnilk and Box Office India estimates without combining figures
+- Explicit disclaimers marking trade figures as disputed estimates rather than universally verified truths
+- Full source metadata including titles, URLs, currencies, categories, and verification status
+- Transparent training cutoff disclosure citing official Meta Llama 3.2 model card (December 2023) or unverified disclosure
 - Honest disclosure when no local movie box-office dataset exists
 - Factual plot fidelity (Katappa & Baahubali canon narrative without fabricated characters)
 - Ambiguity resolution for sports matches (tournament and date clarification)
@@ -31,16 +31,18 @@ class KnowledgeGuard:
         curr_year = time_ctx["current_year"]
         m = (model_name or "llama3.2:3b").lower()
 
-        # Meta Llama 3.2 official template & model card metadata explicitly declare December 2023 cutoff.
+        # Meta Llama 3.2 official model card explicitly declares December 2023 cutoff.
+        # Source: https://github.com/meta-llama/llama-models/blob/main/models/llama3_2/MODEL_CARD.md
         if "llama3.2" in m or "llama-3.2" in m:
             cutoff_info = (
                 "has an explicit verified knowledge cutoff date of December 2023 "
-                "(as specified in Meta's official model metadata and Ollama model card)"
+                "(as specified in Meta's official model card: "
+                "https://github.com/meta-llama/llama-models/blob/main/models/llama3_2/MODEL_CARD.md)"
             )
         elif "llama3" in m or "llama-3" in m:
             cutoff_info = (
                 "has an explicit verified knowledge cutoff date of March 2024 "
-                "(as specified in Meta's official model metadata)"
+                "(as specified in Meta's official Llama 3 model metadata)"
             )
         else:
             cutoff_info = (
@@ -72,65 +74,89 @@ class KnowledgeGuard:
 
     @staticmethod
     def get_baahubali_collection_provenance() -> List[Dict[str, Any]]:
-        """Returns structured typed provenance records for Baahubali 2 collections."""
+        """
+        Returns independent, structured typed provenance records for Baahubali 2 collections.
+        Figures from differing trade tracking services are preserved independently without merging.
+        """
         return [
             {
-                "source": "Box Office India & Bollywood Hungama Theatrical Close Archive",
-                "record_type": "source_derived_historical_trade",
-                "recorded_date": "2017-08-31",
-                "metrics": {
-                    "india_nett": "₹1,030.50 Crore (Source-derived verified close)",
-                    "india_gross": "₹1,416.90 Crore (Source-derived verified close)",
+                "source_title": "Sacnilk Entertainment — Baahubali 2: The Conclusion Box Office Collection",
+                "source_url": "https://www.sacnilk.com/quicknews/Baahubali_2_The_Conclusion_2017_Box_Office_Collection",
+                "collection_category": "Theatrical Run Aggregates (All Languages)",
+                "currency": "INR (Crores)",
+                "figures": {
+                    "india_net": "₹1,030.42 Cr",
+                    "india_gross": "₹1,416.90 Cr",
+                    "overseas_gross": "₹371.16 Cr",
+                    "worldwide_gross": "₹1,788.06 Cr",
                 },
-                "status": "verified_historical_trade",
+                "disclaimer": "Sacnilk figures are compiled trade estimates based on theatre occupancy, ticket tracking, and distributor reports.",
+                "verification_status": "trade_estimate",
             },
             {
-                "source": "International Theatrical Aggregates (Rentrak / Comscore & International Distributors)",
-                "record_type": "dated_curated_estimate",
-                "recorded_date": "2017-08-31",
-                "metrics": {
-                    "overseas_gross": "~₹371 – ₹390 Crore (Dated curated aggregate estimate)",
-                    "worldwide_gross": "~₹1,788 – ₹1,810 Crore (Dated curated aggregate range)",
+                "source_title": "Box Office India — Worldwide Gross Figures (2017 All Time Archive)",
+                "source_url": "https://www.boxofficeindia.com/",
+                "collection_category": "Historical Worldwide Gross Table",
+                "currency": "INR (Crores)",
+                "figures": {
+                    "india_gross": "₹1,429.83 Cr",
+                    "overseas_gross": "₹380.765 Cr",
+                    "worldwide_gross": "₹1,810.595 Cr",
+                    "india_net": "Not separately reported in worldwide gross aggregates",
                 },
-                "status": "curated_trade_estimate",
+                "disclaimer": "Box Office India trade tracking estimate. Figures reflect distributor gross aggregate reporting.",
+                "verification_status": "trade_estimate",
             },
         ]
 
     @staticmethod
     def get_baahubali_collection(category: str = "all") -> str:
-        """Factual collection details for Baahubali 2 with categorized figures and provenance notes."""
+        """
+        Factual collection details for Baahubali 2 preserving independent source figures,
+        explicit category separation, and discrepancy disclosures.
+        """
         c = category.lower()
         if "worldwide" in c or "total" in c:
             return (
-                "**Baahubali 2: The Conclusion** Box Office Collections (Categorized & Verified):\n\n"
-                "**Source-Derived Verified Figures (Theatrical Close, Aug 2017 — Box Office India):**\n"
-                "- **India Nett**: ~₹1,030 Crore (Exact trade close: ₹1,030.50 Cr)\n"
-                "- **India Gross**: ~₹1,416 Crore (Exact trade close: ₹1,416.90 Cr)\n\n"
-                "**Dated Curated Trade Estimates (International Theatrical Aggregates):**\n"
-                "- **Overseas Gross**: ~₹370 – ₹390 Crore (~₹371 Cr trade aggregate)\n"
-                "- **Worldwide Gross Total**: ~₹1,788 – ₹1,810 Crore\n\n"
-                "*(Note: In box-office reporting, India Nett deducts entertainment tax and state levies, while India Gross represents total ticket sales. "
-                "Baahubali 2 remains one of the highest-grossing Indian films in cinematic history.)*"
+                "**Baahubali 2: The Conclusion** Box Office Collections (Independent Trade Estimates):\n\n"
+                "**Source 1: Sacnilk Entertainment (Trade Estimates):**\n"
+                "- **India Net**: ₹1,030.42 Crore\n"
+                "- **India Gross**: ₹1,416.90 Crore\n"
+                "- **Overseas Gross**: ₹371.16 Crore\n"
+                "- **Worldwide Gross Total**: ₹1,788.06 Crore\n"
+                "*(Source: Sacnilk Entertainment — compiled from theatre tracking & distributor estimates)*\n\n"
+                "**Source 2: Box Office India (2017 Archive):**\n"
+                "- **India Gross**: ₹1,429.83 Crore\n"
+                "- **Overseas Gross**: ₹380.765 Crore\n"
+                "- **Worldwide Gross Total**: ₹1,810.595 Crore\n"
+                "*(Source: Box Office India Worldwide Gross Table — India Net not reported in worldwide aggregate)*\n\n"
+                "**Methodology & Discrepancy Disclosure:**\n"
+                "- **India Net vs. India Gross**: India Net reflects theatrical receipts after deducting entertainment tax and state levies; India Gross represents total ticket sales.\n"
+                "- **Trade Discrepancy**: Sacnilk estimates Worldwide Gross at ₹1,788.06 Cr, while Box Office India estimates ₹1,810.60 Cr (~₹22.53 Cr discrepancy) due to differing foreign exchange rates and distributor data compilation.\n"
+                "- Neither total is an audited government or universal figure; both are independent trade estimates."
             )
         elif "day" in c:
             return (
-                "**Baahubali 2: The Conclusion** Day-wise Box Office Highlights (India Nett):\n\n"
-                "- **Day 1 (Opening Day)**: ~₹121 Crore Nett (~₹152 Cr Gross in India; ~₹214 Cr Worldwide Gross across all languages)\n"
-                "- **Day 2**: ~₹90 Crore Nett\n"
-                "- **Day 3 (Sunday)**: ~₹101 Crore Nett (Opening Weekend Nett: ~₹312 Crore)\n"
-                "- **Day 4 (First Monday)**: ~₹80 Crore Nett\n\n"
-                "*(Note: Day-wise totals vary depending on whether Nett or Gross figures are measured across Hindi, Telugu, Tamil, and Malayalam versions.)*"
+                "**Baahubali 2: The Conclusion** Day-wise Box Office Highlights (Trade Estimates):\n\n"
+                "- **Day 1 (Opening Day)**: ~₹121 Crore Net (~₹152 Cr India Gross; ~₹214 Cr Worldwide Gross across all languages per trade aggregates)\n"
+                "- **Day 2**: ~₹90 Crore Net\n"
+                "- **Day 3 (Sunday)**: ~₹101 Crore Net (Opening Weekend Net: ~₹312 Crore)\n"
+                "- **Day 4 (First Monday)**: ~₹80 Crore Net\n\n"
+                "*(Note: Day-wise figures are trade estimates compiled across Hindi, Telugu, Tamil, and Malayalam releases; minor variations exist across reporting platforms.)*"
             )
         else:
             return (
-                "**Baahubali 2: The Conclusion** Box Office Overview (Categorized & Verified):\n\n"
-                "**Source-Derived Verified Figures (Theatrical Close, Aug 2017):**\n"
-                "- **India Gross**: ~₹1,416 Crore (Exact trade close: ₹1,416.90 Cr)\n"
-                "- **India Nett**: ~₹1,030 Crore (Exact trade close: ₹1,030.50 Cr)\n\n"
-                "**Dated Curated Trade Estimates:**\n"
-                "- **Overseas Gross**: ~₹370 – ₹390 Crore\n"
-                "- **Worldwide Gross Total**: ~₹1,788 – ₹1,810 Crore\n\n"
-                "Would you like a day-wise opening breakdown or language-specific collection details?"
+                "**Baahubali 2: The Conclusion** Box Office Overview (Independent Trade Estimates):\n\n"
+                "**Sacnilk Entertainment Figures:**\n"
+                "- **India Net**: ₹1,030.42 Crore\n"
+                "- **India Gross**: ₹1,416.90 Crore\n"
+                "- **Overseas Gross**: ₹371.16 Crore\n"
+                "- **Worldwide Gross Total**: ₹1,788.06 Crore\n\n"
+                "**Box Office India (2017 Archive) Figures:**\n"
+                "- **India Gross**: ₹1,429.83 Crore\n"
+                "- **Overseas Gross**: ₹380.765 Crore\n"
+                "- **Worldwide Gross Total**: ₹1,810.595 Crore\n\n"
+                "*(Discrepancy: ~₹22.53 Cr difference between reporting agencies. Both represent trade estimates, not audited statutory totals.)*"
             )
 
     @staticmethod
@@ -141,7 +167,7 @@ class KnowledgeGuard:
             "content": (
                 f"I do not possess a verified local dataset for the box-office collection of '{clean_title}'. "
                 f"Operating in sovereign offline mode with zero cloud telemetry, I will not fabricate "
-                f"or hallucinate unverified box-office numbers. Verified trade records are currently indexed only for "
+                f"or estimate unverified box-office numbers. Independent trade records are currently indexed only for "
                 f"curated historical benchmarks such as *Baahubali 2: The Conclusion*."
             ),
             "evidence": [
@@ -194,10 +220,11 @@ class KnowledgeGuard:
                 "content": self.get_model_capability_disclosure(),
                 "evidence": [
                     {
-                        "source": "Go 81 System Diagnostics & Model Metadata",
-                        "record_type": "model_metadata_inspection",
-                        "declared_cutoff": "December 2023 (Llama 3.2)",
-                        "verification_level": "official_model_manifest",
+                        "source": "Meta Llama 3.2 Model Card",
+                        "source_url": "https://github.com/meta-llama/llama-models/blob/main/models/llama3_2/MODEL_CARD.md",
+                        "exact_model": "llama3.2:3b",
+                        "declared_cutoff": "December 2023",
+                        "verification_status": "official_model_manifest",
                     }
                 ],
                 "verified": True,

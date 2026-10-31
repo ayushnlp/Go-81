@@ -181,11 +181,13 @@ def test_baahubali_daywise_and_worldwide_followup(client):
     assert resp2.status_code == 200
     data2 = resp2.json()
     content2 = data2["content"]
-    # Must correctly categorize collection figures
-    assert "India Nett" in content2
+    # Must correctly categorize collection figures and preserve independent sources
+    assert "India Net" in content2 or "India Nett" in content2
     assert "India Gross" in content2
     assert "Worldwide Gross Total" in content2
     assert "1,788" in content2 or "1,810" in content2
+    assert "Sacnilk" in content2
+    assert "Box Office India" in content2
 
 
 def test_katappa_canon_plot_explanation(client):
@@ -223,7 +225,7 @@ def test_training_cutoff_explicit_metadata_vs_unverified():
     kg = KnowledgeGuard()
     llama_disclosure = kg.get_model_capability_disclosure("llama3.2:3b")
     assert "December 2023" in llama_disclosure
-    assert "Meta's official model metadata" in llama_disclosure
+    assert "https://github.com/meta-llama/llama-models/blob/main/models/llama3_2/MODEL_CARD.md" in llama_disclosure
 
     custom_disclosure = kg.get_model_capability_disclosure("custom-finetune:latest")
     assert "unverified" in custom_disclosure.lower()
@@ -240,18 +242,20 @@ def test_baahubali_provenance_metadata_structure(client):
     evidence = data.get("evidence", [])
     assert len(evidence) >= 2
 
-    # Verified historical trade record
-    trade_close = next((e for e in evidence if e.get("record_type") == "source_derived_historical_trade"), None)
-    assert trade_close is not None
-    assert "Box Office India" in trade_close["source"]
-    assert "india_nett" in trade_close["metrics"]
-    assert "₹1,030.50" in trade_close["metrics"]["india_nett"]
+    # Source 1: Sacnilk
+    sacnilk_rec = next((e for e in evidence if "Sacnilk" in e.get("source_title", "")), None)
+    assert sacnilk_rec is not None
+    assert "sacnilk.com" in sacnilk_rec["source_url"]
+    assert "trade_estimate" in sacnilk_rec["verification_status"]
+    assert "1,030.42" in sacnilk_rec["figures"]["india_net"]
+    assert "1,788.06" in sacnilk_rec["figures"]["worldwide_gross"]
 
-    # Curated aggregate estimate
-    curated_est = next((e for e in evidence if e.get("record_type") == "dated_curated_estimate"), None)
-    assert curated_est is not None
-    assert "overseas_gross" in curated_est["metrics"]
-    assert "worldwide_gross" in curated_est["metrics"]
+    # Source 2: Box Office India
+    boi_rec = next((e for e in evidence if "Box Office India" in e.get("source_title", "")), None)
+    assert boi_rec is not None
+    assert "boxofficeindia.com" in boi_rec["source_url"]
+    assert "trade_estimate" in boi_rec["verification_status"]
+    assert "1,810.595" in boi_rec["figures"]["worldwide_gross"]
 
 
 def test_unverified_movie_collection_honest_disclosure(client):

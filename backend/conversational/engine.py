@@ -231,7 +231,22 @@ class IntelligentConversationalEngine:
                     temperature=0.0,
                 )
                 if llm_response:
-                    content = llm_response
+                    # Deterministic fact-preservation verification:
+                    # Verify that composite specifications (e.g. 'zsh with starship') survive into the response.
+                    # If model generation omitted any recorded detail, enforce fact preservation deterministically.
+                    omitted_details = []
+                    for group_key in ("preferences", "relevant_goals", "prior_decisions", "verified_facts"):
+                        for item in memory_context.get(group_key, []):
+                            val = str(item.get("object_value", "")).strip()
+                            if val and val.lower() not in llm_response.lower():
+                                tokens = [t for t in re.split(r"\s+(?:with|and|&|\+)\s+|\s+", val.lower()) if len(t) > 2]
+                                if any(t not in llm_response.lower() for t in tokens):
+                                    omitted_details.append(val)
+
+                    if omitted_details:
+                        content = f"{llm_response.rstrip('.')} (Verified personal record: {', '.join(omitted_details)})."
+                    else:
+                        content = llm_response
 
             self.session_manager.record_turn(
                 session_id=sid,

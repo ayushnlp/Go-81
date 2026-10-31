@@ -68,3 +68,4 @@ The Go 81 Top Navigation Bar features an active connection indicator dot:
    ```
 3. **Browser Refresh**:
    If the backend was restarted while a browser tab was open, perform a hard refresh (`Ctrl + Shift + R` or `Ctrl + F5`) in Microsoft Edge / Chrome / Firefox to clear cached disconnect state and re-probe health.
+
