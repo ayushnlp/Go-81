@@ -200,7 +200,13 @@ class IntelligentConversationalEngine:
             else:
                 sections = []
                 if memory_context.get("preferences"):
-                    p_lines = [f"- {p['subject']}: {p['predicate']} is {p['object_value']}" for p in memory_context["preferences"]]
+                    prompt_lower = resolved_prompt.lower()
+                    targeted_prefs = [
+                        p for p in memory_context["preferences"]
+                        if (str(p.get("subject", "")).lower() in prompt_lower or str(p.get("predicate", "")).lower() in prompt_lower)
+                    ]
+                    active_prefs = targeted_prefs if targeted_prefs else memory_context["preferences"]
+                    p_lines = [f"- {p['subject']}: {p['predicate']} is {p['object_value']}" for p in active_prefs]
                     sections.append("Preferences:\n" + "\n".join(p_lines))
                 if memory_context.get("relevant_goals"):
                     g_lines = [f"- {g['predicate']}: {g['object_value']}" for g in memory_context["relevant_goals"]]

@@ -26,12 +26,14 @@ from backend.health import ModelHealthReport, probe_model_health
 from backend.orchestrator import TaskOrchestrator
 from backend.planner import TaskDAG, TaskPlanner, is_conversational_query
 from backend.conversational import get_conversational_engine, format_local_timestamp
+from backend.agent_loop import AutonomousExecutionController, GoalState
 
 logger = logging.getLogger(__name__)
 
 # Global Orchestrator & Planner Singletons
 orchestrator: Optional[TaskOrchestrator] = None
 planner: Optional[TaskPlanner] = None
+agent_controller: Optional[AutonomousExecutionController] = None
 
 
 def get_orchestrator() -> TaskOrchestrator:
@@ -51,6 +53,34 @@ def get_orchestrator() -> TaskOrchestrator:
         orchestrator.permission_gateway = SubsystemContainer.permission_gateway
         orchestrator.flight_recorder = SubsystemContainer.flight_recorder
     return orchestrator
+
+
+def get_agent_controller() -> AutonomousExecutionController:
+    global agent_controller
+    p = get_planner()
+    o = get_orchestrator()
+    try:
+        from app.skills.routes import get_registry
+        reg = get_registry()
+    except Exception:
+        reg = None
+    if agent_controller is None:
+        agent_controller = AutonomousExecutionController(
+            planner=p,
+            orchestrator=o,
+            skill_registry=reg,
+            permission_gateway=o.permission_gateway,
+            recovery_manager=o.recovery_manager,
+            flight_recorder=o.flight_recorder,
+        )
+    else:
+        agent_controller.planner = p
+        agent_controller.orchestrator = o
+        agent_controller.skill_registry = reg
+        agent_controller.permission_gateway = o.permission_gateway
+        agent_controller.recovery_manager = o.recovery_manager
+        agent_controller.flight_recorder = o.flight_recorder
+    return agent_controller
 
 
 def get_planner() -> TaskPlanner:
@@ -136,6 +166,7 @@ app.include_router(skills_router, prefix="/api")
 class CreateTaskRequest(BaseModel):
     goal: str = Field(..., description="User goal or task instruction")
     priority: str = Field(default="normal")
+    autonomous: Optional[bool] = Field(default=False, description="Enable Stage 6 closed-loop autonomous execution")
 
 
 class ApprovalDecisionRequest(BaseModel):
@@ -318,8 +349,12 @@ async def create_and_start_task(req: CreateTaskRequest):
     dag = task_planner.generate_dag(user_goal=req.goal)
     task_orchestrator.register_task(dag)
 
-    # Start DAG execution
-    await task_orchestrator.start_task(dag.task_id)
+    if req.autonomous:
+        controller = get_agent_controller()
+        await controller.run_autonomous_loop(goal=req.goal, task_id=dag.task_id, initial_dag=dag)
+    else:
+        # Start DAG execution
+        await task_orchestrator.start_task(dag.task_id)
 
     # Return updated task from orchestrator reflecting current step statuses
     updated_dag = task_orchestrator.get_task(dag.task_id)
@@ -341,6 +376,28 @@ def get_task_by_id(task_id: str):
     if not task:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=f"Task '{task_id}' not found.")
     return task
+
+
+@app.get("/api/tasks/{task_id}/loop-state", tags=["Tasks & DAGs"])
+def get_task_loop_state(task_id: str):
+    """Retrieves Stage 6 Autonomous Agent Loop state including observations, budget, and replan diffs."""
+    controller = get_agent_controller()
+    state = controller.get_state(task_id)
+    if not state:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=f"No autonomous loop state found for task '{task_id}'.")
+    return state.model_dump()
+
+
+@app.post("/api/tasks/{task_id}/run-autonomous", tags=["Tasks & DAGs"])
+async def run_task_autonomous(task_id: str):
+    """Executes or resumes Stage 6 autonomous loop for a registered task."""
+    task_orchestrator = get_orchestrator()
+    dag = task_orchestrator.get_task(task_id)
+    if not dag:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=f"Task '{task_id}' not found.")
+    controller = get_agent_controller()
+    state = await controller.run_autonomous_loop(goal=dag.goal, task_id=dag.task_id, initial_dag=dag)
+    return state.model_dump()
 
 
 @app.post("/api/tasks/{task_id}/cancel", tags=["Tasks & DAGs"])
@@ -425,6 +482,26 @@ async def submit_approval_decision(approval_id: str, req: ApprovalDecisionReques
     Also resolves standalone SecurityPermissionGateway approvals with complete validation.
     """
     task_orchestrator = get_orchestrator()
+    controller = get_agent_controller()
+    appr_info = task_orchestrator._pending_approvals.get(approval_id)
+    if appr_info and controller.get_state(appr_info.get("task_id", "")):
+        try:
+            loop_state = await controller.resume_approval(
+                approval_id=approval_id,
+                decision=req.decision,
+                notes=req.notes,
+            )
+            return {
+                "success": True,
+                "approval_id": approval_id,
+                "status": req.decision.lower(),
+                "resumed_task_id": appr_info.get("task_id"),
+                "step_id": appr_info.get("step_id"),
+                "task_status": loop_state.status,
+                "loop_phase": loop_state.phase.value,
+            }
+        except KeyError:
+            pass
     try:
         result = await task_orchestrator.resume_approval(
             approval_id=approval_id,
