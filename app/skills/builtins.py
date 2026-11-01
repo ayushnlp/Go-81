@@ -704,4 +704,8 @@ def register_builtin_skills(registry: SkillRegistry) -> None:
         allow_overwrite=True,
     )
 
+    # 14. Stage 8 Autonomous Browser Skills
+    from app.skills.browser_skills import register_browser_skills
+    register_browser_skills(registry)
+
 

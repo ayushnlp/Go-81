@@ -140,6 +140,12 @@ async def lifespan(app: FastAPI):
     get_orchestrator()
     get_planner()
     yield
+    # Clean shutdown of browser runtime
+    try:
+        from backend.browser.runtime import get_browser_runtime
+        await get_browser_runtime().shutdown()
+    except Exception as e:
+        logger.debug(f"Error shutting down browser runtime: {e}")
     # Checkpoint WAL on shutdown
     if SubsystemContainer.db:
         SubsystemContainer.db.checkpoint_wal()

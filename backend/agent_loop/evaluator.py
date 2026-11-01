@@ -35,6 +35,8 @@ READ_ONLY_SKILLS = {
     "conversation.respond",
     "memory.verify",
     "audit.log",
+    "browser.inspect",
+    "browser.screenshot",
 }
 
 # Read-only shell commands
@@ -100,6 +102,24 @@ class GoalEvaluator:
             if any(tok in cmd for tok in dangerous_tokens):
                 return IdempotencyClass.IRREVERSIBLE_HIGH_RISK, True
 
+            return IdempotencyClass.NON_IDEMPOTENT, True
+
+        # Browser skills
+        if skill_name in ("browser.inspect", "browser.screenshot"):
+            return IdempotencyClass.READ_ONLY, False
+
+        if skill_name in ("browser.navigate", "browser.fill", "browser.select", "browser.download"):
+            return IdempotencyClass.IDEMPOTENT, True
+
+        if skill_name in ("browser.click", "browser.upload"):
+            return IdempotencyClass.NON_IDEMPOTENT, True
+
+        if skill_name == "browser.submit":
+            selector = str(parameters.get("selector", "")).lower()
+            form_data = parameters.get("form_data", {})
+            sensitive_keywords = ("pay", "buy", "checkout", "register", "signup", "apply", "delete", "message", "email")
+            if any(k in selector for k in sensitive_keywords) or any(any(k in str(field).lower() for k in sensitive_keywords) for field in (form_data.keys() if isinstance(form_data, dict) else [])):
+                return IdempotencyClass.IRREVERSIBLE_HIGH_RISK, True
             return IdempotencyClass.NON_IDEMPOTENT, True
 
         # 4. Filesystem modifications

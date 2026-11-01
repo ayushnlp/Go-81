@@ -576,6 +576,13 @@ class AutonomousExecutionController:
         finally:
             if self.journal:
                 self.journal.release_task_lease(state.task_id, self.worker_id)
+            try:
+                from backend.browser.runtime import get_browser_runtime
+                rt = get_browser_runtime()
+                if state.task_id in rt._contexts:
+                    await rt.close_context(state.task_id)
+            except Exception as e:
+                logger.debug(f"Error closing browser context for {state.task_id}: {e}")
 
     async def resume_approval(
         self,
@@ -659,6 +666,13 @@ class AutonomousExecutionController:
                 if ae.dispatch_state in (DispatchState.PREPARED, DispatchState.DISPATCHING, DispatchState.RUNNING):
                     self.journal.record_cancelled(ae.attempt_id, reason=reason)
             self.journal.release_task_lease(task_id, self.worker_id)
+        try:
+            from backend.browser.runtime import get_browser_runtime
+            rt = get_browser_runtime()
+            if task_id in rt._contexts:
+                await rt.close_context(task_id)
+        except Exception as e:
+            logger.debug(f"Error closing browser context on cancel for {task_id}: {e}")
         self._persist_state(state)
 
         await self._emit_loop_event(task_id, "loop_terminated", {
