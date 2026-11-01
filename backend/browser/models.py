@@ -1,9 +1,11 @@
 """
-Stage 8: Autonomous Browser & Web Automation Models.
-Typed data contracts, action parameters, evidence representations, and security exceptions.
+Stage 8 & 8.1: Autonomous Browser & Web Automation Models.
+Typed data contracts, action parameters, evidence representations, consequentiality models,
+and security exceptions.
 """
 
 from enum import Enum
+import hashlib
 import time
 from typing import Any, Dict, List, Optional
 from pydantic import BaseModel, Field
@@ -20,6 +22,53 @@ class BrowserActionType(str, Enum):
     DOWNLOAD = "browser.download"
     UPLOAD = "browser.upload"
     SUBMIT = "browser.submit"
+
+
+class ConsequentialCategory(str, Enum):
+    """Categorization of element action impact for consequential click protection."""
+    SAFE_NAVIGATION = "SAFE_NAVIGATION"
+    SAFE_INTERACTION = "SAFE_INTERACTION"
+    SUBMIT = "SUBMIT"
+    PURCHASE = "PURCHASE"
+    PAYMENT = "PAYMENT"
+    REGISTRATION = "REGISTRATION"
+    APPLICATION = "APPLICATION"
+    DELETION = "DELETION"
+    MESSAGING = "MESSAGING"
+    AMBIGUOUS_ACTION = "AMBIGUOUS_ACTION"
+    IRREVERSIBLE = "IRREVERSIBLE"
+
+
+class ClickTargetInspection(BaseModel):
+    """
+    Detailed inspection of a target element prior to clicking.
+    Captures semantic roles, form context, and generates a tamper-evident fingerprint.
+    """
+    selector: str = Field(..., description="Target element selector")
+    url: str = Field(..., description="Page URL where the element was inspected")
+    domain: str = Field(..., description="Domain of the target page")
+    tag_name: str = Field(..., description="Element HTML tag name (uppercase)")
+    element_type: Optional[str] = Field(default=None, description="Input/button type attribute")
+    role: Optional[str] = Field(default=None, description="Computed or explicit ARIA role")
+    accessible_name: str = Field(default="", description="Accessible name / label / innerText")
+    inner_text: str = Field(default="", description="Visible element text")
+    is_inside_form: bool = Field(default=False, description="Whether element is contained within a form")
+    form_action: Optional[str] = Field(default=None, description="Action attribute of parent form")
+    form_method: Optional[str] = Field(default=None, description="Method attribute of parent form")
+    href: Optional[str] = Field(default=None, description="Destination link href if anchor")
+    is_consequential: bool = Field(default=False, description="Whether action requires explicit approval")
+    category: ConsequentialCategory = Field(default=ConsequentialCategory.SAFE_INTERACTION)
+    reason: str = Field(default="", description="Factual explanation of consequentiality")
+    approval_fingerprint: str = Field(default="", description="Cryptographic fingerprint binding this action")
+
+    def compute_fingerprint(self) -> str:
+        """Computes canonical fingerprint binding domain, url, selector, tag, type, and accessible name."""
+        payload = (
+            f"{self.domain}|{self.url}|{self.selector}|{self.tag_name}|"
+            f"{self.element_type or ''}|{self.role or ''}|{self.accessible_name}|"
+            f"{self.is_inside_form}|browser.click"
+        )
+        return hashlib.sha256(payload.encode("utf-8")).hexdigest()[:16]
 
 
 class BrowserEvidence(BaseModel):
@@ -77,7 +126,16 @@ class PromptInjectionAttemptError(BrowserSecurityError):
     pass
 
 
+class ConsequentialActionApprovalRequiredError(BrowserSecurityError):
+    """Raised when a consequential browser action (submit, buy, delete, apply) lacks valid human approval."""
+    pass
+
+
+class ApprovalBindingTamperError(BrowserSecurityError):
+    """Raised when an approval token does not match the bound domain, element, url, or operation."""
+    pass
+
+
 class BrowserActionTimeoutError(TimeoutError):
     """Raised when page loading or element interaction exceeds timeout bounds."""
     pass
-

@@ -1,12 +1,16 @@
 """
-Stage 8: Autonomous Browser & Web Automation Subsystem for Project Go 81.
+Stage 8 & 8.1: Autonomous Browser & Web Automation Subsystem for Project Go 81.
 """
 
 from backend.browser.models import (
+    ApprovalBindingTamperError,
     BrowserActionTimeoutError,
     BrowserActionType,
     BrowserEvidence,
     BrowserSecurityError,
+    ClickTargetInspection,
+    ConsequentialActionApprovalRequiredError,
+    ConsequentialCategory,
     PromptInjectionAttemptError,
     SSRFSecurityError,
 )
@@ -21,10 +25,14 @@ from backend.browser.security import (
 )
 
 __all__ = [
+    "ApprovalBindingTamperError",
     "BrowserActionTimeoutError",
     "BrowserActionType",
     "BrowserEvidence",
     "BrowserSecurityError",
+    "ClickTargetInspection",
+    "ConsequentialActionApprovalRequiredError",
+    "ConsequentialCategory",
     "CredentialSanitizer",
     "PlaywrightBrowserRuntime",
     "PromptInjectionAttemptError",
@@ -33,4 +41,3 @@ __all__ = [
     "SSRFValidator",
     "get_browser_runtime",
 ]
-

@@ -1,7 +1,7 @@
 """
-Stage 8: Browser Skills Registration and Handlers for Project Go 81.
+Stage 8 & 8.1: Browser Skills Registration and Handlers for Project Go 81.
 Integrates Playwright browser actions into the existing SkillRegistry and PermissionGateway.
-Enforces SSRF validation, risk tiers, and Human Approval Gates on sensitive operations.
+Enforces SSRF validation, consequential click protection, and Human Approval Gates.
 """
 
 import os
@@ -65,11 +65,13 @@ async def _browser_click_handler(params: Dict[str, Any], context: ExecutionConte
     selector = str(params["selector"])
     wait_nav = params.get("wait_for_navigation", False)
     timeout = params.get("timeout_seconds", 10.0)
+    approval_token = params.get("approval_token") or getattr(context, "approval_token", None)
 
     evidence: BrowserEvidence = await runtime.click(
         task_id=task_id,
         selector=selector,
         step_id=context.step_id,
+        approval_token=approval_token,
         wait_for_navigation=bool(wait_nav),
         timeout_seconds=float(timeout),
     )
@@ -241,13 +243,14 @@ def register_browser_skills(registry: SkillRegistry) -> None:
             name=BrowserActionType.CLICK.value,
             displayName="Browser Click",
             version="1.0.0",
-            description="Clicks a button, link, or accessible interactive element on the page.",
+            description="Clicks a button, link, or accessible interactive element on the page. Consequential actions require explicit human confirmation.",
             category=SkillCategory.NETWORK,
             required_capabilities=[],
             risk_level=SkillRiskLevel.MEDIUM,
             requires_approval=False,
             parameters=[
                 SkillParameter(name="selector", type="string", description="Element selector or accessible name to click", required=True),
+                SkillParameter(name="approval_token", type="string", description="Single-use cryptographic human approval token required for consequential actions (submit, buy, delete, apply)", required=False, default=None),
                 SkillParameter(name="wait_for_navigation", type="boolean", description="Whether to wait for page navigation", required=False, default=False),
                 SkillParameter(name="timeout_seconds", type="number", description="Timeout in seconds", required=False, default=10.0),
             ],
@@ -322,7 +325,7 @@ def register_browser_skills(registry: SkillRegistry) -> None:
             name=BrowserActionType.SCREENSHOT.value,
             displayName="Browser Screenshot",
             version="1.0.0",
-            description="Captures a high-resolution screenshot stored into isolated task storage.",
+            description="Captures a high-resolution screenshot stored into isolated task storage. Password fields are automatically masked.",
             category=SkillCategory.NETWORK,
             required_capabilities=[],
             risk_level=SkillRiskLevel.LOW,
@@ -419,4 +422,3 @@ def register_browser_skills(registry: SkillRegistry) -> None:
         is_builtin=True,
         allow_overwrite=True,
     )
-

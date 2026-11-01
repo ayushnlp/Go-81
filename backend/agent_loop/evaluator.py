@@ -111,7 +111,18 @@ class GoalEvaluator:
         if skill_name in ("browser.navigate", "browser.fill", "browser.select", "browser.download"):
             return IdempotencyClass.IDEMPOTENT, True
 
-        if skill_name in ("browser.click", "browser.upload"):
+        if skill_name == "browser.click":
+            selector = str(parameters.get("selector", "")).lower()
+            consequential_keywords = (
+                "pay", "buy", "checkout", "purchase", "order", "subscribe",
+                "submit", "delete", "remove", "destroy", "apply", "register",
+                "signup", "send", "post"
+            )
+            if any(k in selector for k in consequential_keywords) or parameters.get("approval_token"):
+                return IdempotencyClass.IRREVERSIBLE_HIGH_RISK, True
+            return IdempotencyClass.NON_IDEMPOTENT, True
+
+        if skill_name in ("browser.upload",):
             return IdempotencyClass.NON_IDEMPOTENT, True
 
         if skill_name == "browser.submit":

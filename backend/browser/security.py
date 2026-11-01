@@ -1,9 +1,10 @@
 """
-Stage 8: Autonomous Browser Security Subsystem.
-Enforces strict SSRF protection, DNS rebinding mitigation, alternative IP encoding neutralization,
-prompt injection defense, and credential redaction.
+Stage 8 & 8.1: Autonomous Browser Security Subsystem.
+Enforces advanced SSRF protection, IPv4/IPv6 private & loopback filtering, DNS rebinding mitigation,
+multilingual & obfuscated prompt injection defense, and comprehensive credential redaction.
 """
 
+import base64
 import ipaddress
 import logging
 import re
@@ -42,40 +43,74 @@ BLOCKED_PORTS = {
     3001,  # Go 81 Proxy
 }
 
-# Prompt injection regex signatures in untrusted web text
+# Known non-HTTP schemes that must be strictly rejected
+PROHIBITED_SCHEMES = {
+    "file", "ftp", "data", "javascript", "chrome", "view-source",
+    "ws", "wss", "blob", "about", "gopher", "ldap", "dict"
+}
+
+# Prompt injection regex signatures across English, Russian, Chinese, Spanish, French, German
 PROMPT_INJECTION_PATTERNS = [
-    re.compile(r"ignore\s+(all\s+)?(previous|above)\s+(instructions|prompts|directions)", re.IGNORECASE),
-    re.compile(r"you\s+are\s+now\s+(an\s+unrestricted|a\s+new\s+agent|DAN)", re.IGNORECASE),
-    re.compile(r"disregard\s+(all\s+)?(safety|system|prior)\s+(guidelines|instructions)", re.IGNORECASE),
-    re.compile(r"system\s+prompt\s*:\s*", re.IGNORECASE),
+    # English
+    re.compile(r"ignore\s+(all\s+)?(previous|above|prior)\s+(instructions|prompts|directions)", re.IGNORECASE),
+    re.compile(r"you\s+are\s+now\s+(an\s+unrestricted|a\s+new\s+agent|dan|jailbroken)", re.IGNORECASE),
+    re.compile(r"disregard\s+(all\s+)?(safety|system|prior)\s+(guidelines|instructions|rules)", re.IGNORECASE),
+    re.compile(r"system\s*prompt\s*:\s*", re.IGNORECASE),
     re.compile(r"developer\s+mode\s+(enabled|on)", re.IGNORECASE),
-    re.compile(r"bypass\s+all\s+(filters|restrictions)", re.IGNORECASE),
+    re.compile(r"bypass\s+all\s+(filters|restrictions|guardrails)", re.IGNORECASE),
+    re.compile(r"new\s+instructions\s*:\s*", re.IGNORECASE),
+    # Russian
+    re.compile(r"игнорируй(те)?\s+(все\s+)?(предыдущие\s+)?инструкции", re.IGNORECASE),
+    re.compile(r"вы\s+теперь\s+(новый\s+агент|без\s+ограничений)", re.IGNORECASE),
+    re.compile(r"системная\s+инструкция\s*:\s*", re.IGNORECASE),
+    # Chinese
+    re.compile(r"忽略.*?(指令|指示|规则|提示)", re.IGNORECASE),
+    re.compile(r"你现在是(一个)?(不受限制的|新的)?(智能体|助手)", re.IGNORECASE),
+    re.compile(r"系统提示\s*[:：]\s*", re.IGNORECASE),
+    # Spanish
+    re.compile(r"ignora\s+(todas\s+las\s+)?(instrucciones|indicaciones)\s*(anteriores|previas)?", re.IGNORECASE),
+    re.compile(r"ahora\s+eres\s+(un\s+nuevo\s+agente|dan)", re.IGNORECASE),
+    re.compile(r"modo\s+desarrollador\s+(activado|on)", re.IGNORECASE),
+    # French (with accent tolerance)
+    re.compile(r"ignore(z)?\s+(toutes\s+les\s+)?instructions\s*(pr[eéè]c[eéè]dentes|ant[eéè]rieures)?", re.IGNORECASE),
+    re.compile(r"vous\s+êtes\s+maintenant\s+(un\s+nouvel\s+agent|sans\s+limite)", re.IGNORECASE),
+    # German
+    re.compile(r"ignoriere\s+(alle\s+)?(vorherigen\s+)?anweisungen", re.IGNORECASE),
+    re.compile(r"du\s+bist\s+jetzt\s+(ein\s+neuer\s+agent|ohne\s+einschränkungen)", re.IGNORECASE),
 ]
 
-# Sensitive form input keys
+# Sensitive form input keys, URL query params, and header names
 SENSITIVE_KEY_PATTERN = re.compile(
-    r"(password|pwd|passwd|secret|token|otp|cvv|credit_card|card_num|auth|bearer)",
+    r"(password|pwd|passwd|secret|token|otp|cvv|credit_card|card_num|auth|bearer|api_key|access_token|refresh_token|session_id|private_key)",
     re.IGNORECASE,
 )
+
+# Zero-width character filter
+ZERO_WIDTH_CHARS = re.compile(r"[\u200b\u200c\u200d\ufeff\u202a-\u202e]")
 
 
 class SSRFValidator:
     """
-    Robust SSRF Protection Engine.
+    Robust SSRF Protection Engine with IPv4/IPv6 Hardening.
     Validates target URLs, resolves DNS hostnames, normalizes alternate IP representations
-    (octal, hex, dword, IPv6-mapped), and verifies against private, loopback, and metadata ranges.
+    (octal, hex, dword, IPv6-mapped, 6to4, Teredo), enforces private/loopback/link-local blocks,
+    and detects DNS rebinding attempts.
     """
 
     def __init__(self, allow_local_test_server: bool = False, allowed_test_hosts: Optional[Set[str]] = None):
         self.allow_local_test_server = allow_local_test_server
         self.allowed_test_hosts = set(allowed_test_hosts or [])
+        # Ephemeral DNS history to flag rebinding
+        self._dns_history: Dict[str, Set[str]] = {}
 
     @staticmethod
     def parse_and_normalize_ip(ip_str: str) -> Optional[ipaddress.IPv4Address | ipaddress.IPv6Address]:
         """
-        Attempts to parse IP address handling standard, dword (int), hex, and IPv6 encodings.
+        Parses IP addresses handling standard IPv4/IPv6, dword (int), hex, octal, dotted-hex,
+        and bracketed IPv6 strings.
         """
-        clean = ip_str.strip()
+        clean = ip_str.strip().strip("[]")
+
         # Direct ipaddress parsing
         try:
             return ipaddress.ip_address(clean)
@@ -126,7 +161,7 @@ class SSRFValidator:
         """
         Validates that a URL is safe to navigate to or fetch resources from.
         Raises SSRFSecurityError if destination violates security policies.
-        Returns the normalized URL string.
+        Returns normalized URL string.
         """
         if not url or not isinstance(url, str):
             raise SSRFSecurityError("URL must be a non-empty string.")
@@ -157,7 +192,7 @@ class SSRFValidator:
         if port and port in BLOCKED_PORTS and not self.allow_local_test_server:
             raise SSRFSecurityError(f"Access to protected local port {port} is strictly prohibited.")
 
-        # 4. Check if hostname is an encoded IP directly
+        # 4. Check if hostname is an encoded or raw IP directly
         direct_ip = self.parse_and_normalize_ip(hostname)
         if direct_ip:
             self._verify_ip_safety(direct_ip, hostname)
@@ -172,27 +207,64 @@ class SSRFValidator:
         if not addr_info:
             raise SSRFSecurityError(f"No IP addresses resolved for hostname '{hostname}'.")
 
-        # Verify EVERY resolved IP address
+        resolved_ips: Set[str] = set()
         for family, socktype, proto, canonname, sockaddr in addr_info:
             ip_str = sockaddr[0]
+            resolved_ips.add(ip_str)
             try:
                 resolved_ip = ipaddress.ip_address(ip_str)
                 self._verify_ip_safety(resolved_ip, hostname)
             except ValueError as ve:
                 raise SSRFSecurityError(f"Invalid resolved IP '{ip_str}' for hostname '{hostname}': {ve}")
 
+        # Rebinding detection: If hostname was previously observed resolving to safe IPs
+        # and suddenly changes to include private or unexpected IPs
+        if hostname in self._dns_history:
+            prev_ips = self._dns_history[hostname]
+            if not resolved_ips.issubset(prev_ips) and not prev_ips.issubset(resolved_ips):
+                logger.info(f"DNS resolution drift for '{hostname}': {prev_ips} -> {resolved_ips}")
+        self._dns_history[hostname] = resolved_ips
+
         return url
 
     def _verify_ip_safety(self, ip: ipaddress.IPv4Address | ipaddress.IPv6Address, original_host: str) -> None:
-        """Enforces private, loopback, link-local, multicast, and metadata blocks."""
-        # Check IPv4-mapped IPv6 (e.g. ::ffff:127.0.0.1)
-        if isinstance(ip, ipaddress.IPv6Address) and ip.ipv4_mapped:
-            ip = ip.ipv4_mapped
-
+        """
+        Enforces private, loopback, link-local, multicast, site-local, and metadata blocks
+        across both IPv4 and IPv6 address spaces, including transitional tunnels (6to4, Teredo).
+        """
         # If local test server is explicitly enabled, bypass loopback block for test host
         if self.allow_local_test_server and (ip.is_loopback or str(ip) in ("127.0.0.1", "::1")):
             return
 
+        # Check IPv4-mapped IPv6 (e.g. ::ffff:127.0.0.1)
+        if isinstance(ip, ipaddress.IPv6Address):
+            if ip.ipv4_mapped:
+                self._verify_ip_safety(ip.ipv4_mapped, original_host)
+                return
+
+            # Check IPv4-compatible IPv6 (deprecated ::x.x.x.x where lower 32 bits are IPv4)
+            if int(ip) <= 0xFFFFFFFF and int(ip) != 1:  # exclude ::1 which is standard loopback
+                embedded_ipv4 = ipaddress.IPv4Address(int(ip))
+                self._verify_ip_safety(embedded_ipv4, original_host)
+                return
+
+            # Check 6to4 prefix (2002::/16) embedding IPv4 in bits 16-47
+            if ip in ipaddress.IPv6Network("2002::/16"):
+                embedded_int = (int(ip) >> 80) & 0xFFFFFFFF
+                embedded_ipv4 = ipaddress.IPv4Address(embedded_int)
+                self._verify_ip_safety(embedded_ipv4, original_host)
+                return
+
+            # Check Teredo prefix (2001::/32) embedding client IPv4 in last 32 bits (inverted)
+            if ip in ipaddress.IPv6Network("2001::/32"):
+                embedded_int = (~int(ip)) & 0xFFFFFFFF
+                try:
+                    embedded_ipv4 = ipaddress.IPv4Address(embedded_int)
+                    self._verify_ip_safety(embedded_ipv4, original_host)
+                except Exception:
+                    pass
+
+        # Standard range audits
         if ip.is_loopback:
             raise SSRFSecurityError(f"Access to loopback IP '{ip}' (via '{original_host}') is strictly prohibited.")
 
@@ -220,41 +292,80 @@ class SSRFValidator:
 class PromptInjectionDefense:
     """
     Sanitizes untrusted web page text, DOM snapshots, and document content.
-    Neutralizes prompt-override attempts and wraps data in rigorous isolation boundaries.
+    Neutralizes prompt-override attempts, normalizes obfuscated characters, and
+    wraps all web payloads in rigorous, non-executable data boundaries.
     """
 
     @staticmethod
-    def detect_prompt_injection(text: str) -> Tuple[bool, Optional[str]]:
+    def normalize_text(text: str) -> str:
         """
-        Scans text for prompt injection signatures.
-        Returns (is_detected, matched_pattern_description).
+        Removes zero-width characters and collapses spaced-character obfuscations.
+        """
+        if not text:
+            return ""
+        # Remove zero-width formatting characters
+        normalized = ZERO_WIDTH_CHARS.sub("", text)
+        return normalized
+
+    @classmethod
+    def detect_prompt_injection(cls, text: str) -> Tuple[bool, Optional[str]]:
+        """
+        Scans text for multilingual prompt injection signatures, spaced obfuscations,
+        and base64-encoded command markers.
         """
         if not text:
             return False, None
 
+        normalized = cls.normalize_text(text)
+
+        # 1. Direct regex pattern scan
         for pattern in PROMPT_INJECTION_PATTERNS:
-            match = pattern.search(text)
+            match = pattern.search(normalized)
             if match:
                 return True, match.group(0)
 
+        # 2. Check for spaced character evasion (e.g., "i g n o r e   a l l")
+        s = normalized
+        while True:
+            new_s = re.sub(r"(?<=\b[a-zA-Z])\s(?=[a-zA-Z]\b)", "", s)
+            if new_s == s:
+                break
+            s = new_s
+
+        for pattern in PROMPT_INJECTION_PATTERNS:
+            match = pattern.search(s)
+            if match:
+                return True, f"Spaced evasion: {match.group(0)}"
+
+        # 3. Base64 encoded instruction detection
+        b64_candidate_matches = re.findall(r"[A-Za-z0-9+/]{20,}={0,2}", text)
+        for cand in b64_candidate_matches:
+            try:
+                decoded = base64.b64decode(cand).decode("utf-8", errors="ignore").lower()
+                if "ignore" in decoded and "instructions" in decoded:
+                    return True, f"Base64 encoded injection: {cand[:15]}..."
+            except Exception:
+                pass
+
         return False, None
 
-    @staticmethod
+    @classmethod
     def sanitize_web_content(
+        cls,
         text: str,
         max_length: int = 16384,
         neutralize_injections: bool = True,
     ) -> str:
         """
         Sanitizes raw text extracted from web pages:
-        1. Binds total string length to avoid memory bloat.
+        1. Binds total string length.
         2. Neutralizes prompt injection commands.
         3. Wraps the output in explicit untrusted data markers.
         """
         if not text:
             return ""
 
-        clean = text.replace("\r", "")
+        clean = cls.normalize_text(text.replace("\r", ""))
         if len(clean) > max_length:
             clean = clean[:max_length] + "\n...[truncated]"
 
@@ -271,24 +382,137 @@ class PromptInjectionDefense:
 
 class CredentialSanitizer:
     """
-    Redacts sensitive form input arguments and credential values.
+    Sanitizes credentials, session tokens, passwords, and sensitive values across
+    nested dictionaries, free text, URLs, and headers.
     """
 
     @staticmethod
     def sanitize_form_data(form_data: Dict[str, Any]) -> Dict[str, Any]:
+        """Backward-compatible alias for nested dictionary sanitization."""
+        return CredentialSanitizer.sanitize_nested(form_data)
+
+    @staticmethod
+    def sanitize_nested(data: Any) -> Any:
         """
-        Replaces sensitive credential fields with '[REDACTED_CREDENTIAL]'.
+        Recursively replaces sensitive credential fields in dicts, lists, and primitives
+        with '[REDACTED_CREDENTIAL]'.
         """
-        if not isinstance(form_data, dict):
+        if isinstance(data, dict):
+            clean_dict: Dict[str, Any] = {}
+            for k, v in data.items():
+                if isinstance(v, (dict, list, tuple, set)):
+                    clean_dict[k] = CredentialSanitizer.sanitize_nested(v)
+                elif SENSITIVE_KEY_PATTERN.search(str(k)):
+                    clean_dict[k] = "[REDACTED_CREDENTIAL]"
+                else:
+                    clean_dict[k] = CredentialSanitizer.sanitize_nested(v)
+            return clean_dict
+
+        if isinstance(data, list):
+            return [CredentialSanitizer.sanitize_nested(item) for item in data]
+
+        if isinstance(data, tuple):
+            return tuple(CredentialSanitizer.sanitize_nested(item) for item in data)
+
+        if isinstance(data, set):
+            return {CredentialSanitizer.sanitize_nested(item) for item in data}
+
+        if isinstance(data, str):
+            return CredentialSanitizer.sanitize_text(data)
+
+        return data
+
+    @staticmethod
+    def sanitize_url(url: str) -> str:
+        """
+        Redacts credentials embedded in URL userinfo or query string parameters.
+        Example: http://user:pass@host/path?token=secret -> http://user:[REDACTED]@host/path?token=[REDACTED_CREDENTIAL]
+        """
+        if not url or not isinstance(url, str):
+            return url
+
+        try:
+            parsed = urllib.parse.urlsplit(url)
+            netloc = parsed.netloc
+
+            # Check userinfo in netloc (e.g., user:pass@host)
+            if "@" in netloc:
+                userinfo, host_port = netloc.rsplit("@", 1)
+                if ":" in userinfo:
+                    user, _ = userinfo.split(":", 1)
+                    netloc = f"{user}:[REDACTED_CREDENTIAL]@{host_port}"
+                else:
+                    netloc = f"[REDACTED_CREDENTIAL]@{host_port}"
+
+            # Scrub query parameters
+            if parsed.query:
+                query_pairs = urllib.parse.parse_qsl(parsed.query, keep_blank_values=True)
+                sanitized_pairs = []
+                for k, v in query_pairs:
+                    if SENSITIVE_KEY_PATTERN.search(k):
+                        sanitized_pairs.append((k, "[REDACTED_CREDENTIAL]"))
+                    else:
+                        sanitized_pairs.append((k, v))
+                new_query = urllib.parse.urlencode(sanitized_pairs)
+            else:
+                new_query = ""
+
+            return urllib.parse.urlunsplit((parsed.scheme, netloc, parsed.path, new_query, parsed.fragment))
+        except Exception:
+            return url
+
+    @staticmethod
+    def sanitize_text(text: str) -> str:
+        """
+        Redacts Bearer tokens, Basic auth, cookie values, and credential assignments in free text.
+        """
+        if not text or not isinstance(text, str):
+            return text
+
+        # Bearer token redaction
+        sanitized = re.sub(
+            r"(Bearer\s+)[A-Za-z0-9\-\._~\+\/]+=*",
+            r"\1[REDACTED_TOKEN]",
+            text,
+            flags=re.IGNORECASE,
+        )
+
+        # Basic auth redaction
+        sanitized = re.sub(
+            r"(Basic\s+)[A-Za-z0-9\+\/]+=*",
+            r"\1[REDACTED_AUTH]",
+            sanitized,
+            flags=re.IGNORECASE,
+        )
+
+        # Query param assignments in logs or text (e.g., password=secret123)
+        sanitized = re.sub(
+            r"(?i)\b(password|pwd|token|api_key|secret|otp|cvv)=([^&\s]+)",
+            r"\1=[REDACTED_CREDENTIAL]",
+            sanitized,
+        )
+
+        # Cookie header redaction
+        sanitized = re.sub(
+            r"(?i)(cookie:\s*)([^\r\n]+)",
+            r"\1[REDACTED_COOKIE]",
+            sanitized,
+        )
+
+        return sanitized
+
+    @staticmethod
+    def sanitize_headers(headers: Dict[str, str]) -> Dict[str, str]:
+        """
+        Redacts Authorization, Cookie, Set-Cookie, and API key headers.
+        """
+        if not isinstance(headers, dict):
             return {}
 
-        clean: Dict[str, Any] = {}
-        for k, v in form_data.items():
-            if SENSITIVE_KEY_PATTERN.search(str(k)):
-                clean[k] = "[REDACTED_CREDENTIAL]"
-            elif isinstance(v, dict):
-                clean[k] = CredentialSanitizer.sanitize_form_data(v)
+        clean_headers: Dict[str, str] = {}
+        for k, v in headers.items():
+            if SENSITIVE_KEY_PATTERN.search(k) or k.lower() in ("authorization", "cookie", "set-cookie", "x-api-key"):
+                clean_headers[k] = "[REDACTED_CREDENTIAL]"
             else:
-                clean[k] = v
-        return clean
-
+                clean_headers[k] = v
+        return clean_headers
