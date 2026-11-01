@@ -70,6 +70,9 @@ class SubsystemContainer:
     consolidation_engine: Optional[MemoryConsolidationEngine] = None
     flight_recorder: Optional[FlightRecorderService] = None
     checkpoint_service: Optional[CheckpointService] = None
+    journal_service: Optional[Any] = None
+    subprocess_tracker: Optional[Any] = None
+    recovery_engine: Optional[Any] = None
 
     @classmethod
     def initialize(
@@ -91,6 +94,19 @@ class SubsystemContainer:
         cls.permission_gateway = PermissionGateway(cls.db)
         cls.consolidation_engine = MemoryConsolidationEngine(cls.memory_service)
         SecurityBoundary._db = cls.db
+
+        from app.memory.journal import ExecutionJournalService
+        from backend.agent_loop.subprocess_tracker import SubprocessTracker
+        from backend.agent_loop.recovery_engine import AutonomousRecoveryEngine
+
+        cls.journal_service = ExecutionJournalService(cls.db)
+        cls.subprocess_tracker = SubprocessTracker()
+        cls.recovery_engine = AutonomousRecoveryEngine(
+            cls.db,
+            cls.recovery_manager,
+            cls.journal_service,
+            cls.subprocess_tracker,
+        )
 
 
 def get_memory_service() -> MemoryService:
@@ -127,6 +143,24 @@ def get_checkpoint_service() -> CheckpointService:
     if SubsystemContainer.checkpoint_service is None:
         SubsystemContainer.initialize()
     return SubsystemContainer.checkpoint_service
+
+
+def get_journal_service():
+    if SubsystemContainer.journal_service is None:
+        SubsystemContainer.initialize()
+    return SubsystemContainer.journal_service
+
+
+def get_subprocess_tracker():
+    if SubsystemContainer.subprocess_tracker is None:
+        SubsystemContainer.initialize()
+    return SubsystemContainer.subprocess_tracker
+
+
+def get_recovery_engine():
+    if SubsystemContainer.recovery_engine is None:
+        SubsystemContainer.initialize()
+    return SubsystemContainer.recovery_engine
 
 
 # ============================================================================

@@ -13,7 +13,7 @@ from typing import Generator, List, Optional
 
 logger = logging.getLogger(__name__)
 
-CURRENT_SCHEMA_VERSION = 1
+CURRENT_SCHEMA_VERSION = 5
 
 
 def utc_now() -> str:
@@ -236,11 +236,63 @@ def _apply_migration_v4(conn: sqlite3.Connection) -> None:
     cursor.execute("CREATE INDEX IF NOT EXISTS idx_mem_emb_model ON memory_embeddings(model_name);")
 
 
+def _apply_migration_v5(conn: sqlite3.Connection) -> None:
+    """
+    Migration v5: Relational Durable Execution Journal and Lease Concurrency Controls.
+    Supports atomic dispatch state transitions, subprocess tracking, and optimistic task leases.
+    """
+    cursor = conn.cursor()
+
+    # 1. Execution Journal Table
+    cursor.execute("""
+        CREATE TABLE IF NOT EXISTS execution_journal (
+            entry_id TEXT PRIMARY KEY,
+            task_id TEXT NOT NULL REFERENCES task_checkpoints(task_id) ON DELETE CASCADE,
+            step_id TEXT NOT NULL,
+            attempt_id TEXT UNIQUE NOT NULL,
+            action TEXT NOT NULL,
+            idempotency_class TEXT NOT NULL DEFAULT 'READ_ONLY',
+            param_hash TEXT NOT NULL,
+            sanitized_params TEXT NOT NULL DEFAULT '{}',
+            dispatch_state TEXT NOT NULL DEFAULT 'PREPARED',
+            approval_ref TEXT,
+            pid INTEGER,
+            process_creation_time REAL,
+            log_path TEXT,
+            exit_code INTEGER,
+            result_digest TEXT,
+            error_message TEXT,
+            checkpoint_version INTEGER NOT NULL DEFAULT 1,
+            recovery_attempts INTEGER NOT NULL DEFAULT 0,
+            created_at TEXT NOT NULL,
+            dispatched_at TEXT,
+            completed_at TEXT,
+            updated_at TEXT NOT NULL
+        );
+    """)
+    cursor.execute("CREATE INDEX IF NOT EXISTS idx_journal_task ON execution_journal(task_id);")
+    cursor.execute("CREATE INDEX IF NOT EXISTS idx_journal_step ON execution_journal(task_id, step_id);")
+    cursor.execute("CREATE INDEX IF NOT EXISTS idx_journal_state ON execution_journal(dispatch_state);")
+    cursor.execute("CREATE INDEX IF NOT EXISTS idx_journal_attempt ON execution_journal(attempt_id);")
+
+    # 2. Add lease and versioning columns to task_checkpoints
+    cursor.execute("PRAGMA table_info(task_checkpoints);")
+    chk_cols = [row[1] for row in cursor.fetchall()]
+    if "checkpoint_version" not in chk_cols:
+        cursor.execute("ALTER TABLE task_checkpoints ADD COLUMN checkpoint_version INTEGER NOT NULL DEFAULT 1;")
+    if "lease_holder" not in chk_cols:
+        cursor.execute("ALTER TABLE task_checkpoints ADD COLUMN lease_holder TEXT;")
+    if "lease_expires_at" not in chk_cols:
+        cursor.execute("ALTER TABLE task_checkpoints ADD COLUMN lease_expires_at REAL;")
+    cursor.execute("CREATE INDEX IF NOT EXISTS idx_checkpoints_lease ON task_checkpoints(lease_holder, lease_expires_at);")
+
+
 MIGRATIONS = {
     1: _apply_migration_v1,
     2: _apply_migration_v2,
     3: _apply_migration_v3,
     4: _apply_migration_v4,
+    5: _apply_migration_v5,
 }
 
 

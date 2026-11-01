@@ -72,6 +72,9 @@ def get_agent_controller() -> AutonomousExecutionController:
             permission_gateway=o.permission_gateway,
             recovery_manager=o.recovery_manager,
             flight_recorder=o.flight_recorder,
+            journal_service=SubsystemContainer.journal_service,
+            subprocess_tracker=SubsystemContainer.subprocess_tracker,
+            recovery_engine=SubsystemContainer.recovery_engine,
         )
     else:
         agent_controller.planner = p
@@ -80,6 +83,9 @@ def get_agent_controller() -> AutonomousExecutionController:
         agent_controller.permission_gateway = o.permission_gateway
         agent_controller.recovery_manager = o.recovery_manager
         agent_controller.flight_recorder = o.flight_recorder
+        agent_controller.journal = SubsystemContainer.journal_service
+        agent_controller.subprocess_tracker = SubsystemContainer.subprocess_tracker
+        agent_controller.recovery_engine = SubsystemContainer.recovery_engine
     return agent_controller
 
 
@@ -108,8 +114,17 @@ async def lifespan(app: FastAPI):
         SubsystemContainer.initialize(db_path=db_path)
         SkillContainer.initialize(SubsystemContainer.db)
 
-    # Crash Recovery Audit on startup (Member 2 requirement)
-    if SubsystemContainer.recovery_manager:
+    # Stage 7 Autonomous Recovery Startup Audit
+    if SubsystemContainer.recovery_engine:
+        try:
+            audit_summary = SubsystemContainer.recovery_engine.perform_startup_audit_and_recovery()
+            logger.info(
+                f"Stage 7 Startup Recovery Audit: {audit_summary.get('incomplete_tasks_audited', 0)} tasks audited, "
+                f"{audit_summary.get('stale_leases_cleared', 0)} stale leases cleared."
+            )
+        except Exception as e:
+            logger.warning(f"Startup Recovery Audit encountered error: {e}")
+    elif SubsystemContainer.recovery_manager:
         try:
             incomplete = SubsystemContainer.recovery_manager.load_incomplete_tasks(raise_on_error=False)
             if incomplete:
@@ -410,6 +425,67 @@ async def cancel_task_by_id(task_id: str, req: Optional[Dict[str, Any]] = None):
     except KeyError as e:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=str(e))
 
+
+
+
+class ReconcileTaskRequest(BaseModel):
+    step_id: str = Field(..., description="Target step identifier to reconcile")
+    resolution: str = Field(..., description="mark_succeeded, mark_failed, or retry")
+    notes: Optional[str] = Field(None, description="Operator notes or reasoning")
+
+
+@app.get("/api/tasks/{task_id}/recovery-status", tags=["Tasks & DAGs"])
+async def get_task_recovery_status(task_id: str):
+    """Retrieves full crash recovery audit state, execution journal entries, and lease info."""
+    if SubsystemContainer.db is None:
+        SubsystemContainer.initialize()
+    recovery_mgr = SubsystemContainer.recovery_manager
+    journal = SubsystemContainer.journal_service
+    chk = recovery_mgr.get_task_checkpoint(task_id) if recovery_mgr else None
+    if not chk:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=f"Task '{task_id}' not found.")
+    journal_entries = journal.get_journal_for_task(task_id) if journal else []
+    return {
+        "task_id": task_id,
+        "status": chk.status.value,
+        "current_step": chk.current_step,
+        "completed_steps": chk.completed_step_ids,
+        "pending_steps": chk.pending_step_ids,
+        "checkpoint_version": chk.checkpoint_version,
+        "lease_holder": chk.lease_holder,
+        "lease_expires_at": chk.lease_expires_at,
+        "requires_reconciliation": (chk.status.value == "REQUIRES_RECONCILIATION"),
+        "reconciliation_reason": chk.state_data.get("reconciliation_reason"),
+        "journal_entries": [e.model_dump() for e in journal_entries],
+    }
+
+
+@app.post("/api/tasks/{task_id}/reconcile", tags=["Tasks & DAGs"])
+async def reconcile_task_step(task_id: str, req: ReconcileTaskRequest):
+    """Operator endpoint to manually resolve quarantined tasks."""
+    if SubsystemContainer.db is None:
+        SubsystemContainer.initialize()
+    recovery_engine = SubsystemContainer.recovery_engine
+    if not recovery_engine:
+        raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail="Recovery engine is unavailable.")
+    try:
+        updated_chk = recovery_engine.reconcile_task(
+            task_id=task_id,
+            step_id=req.step_id,
+            resolution=req.resolution,
+            notes=req.notes,
+        )
+        return {
+            "task_id": task_id,
+            "status": updated_chk.status.value,
+            "reconciled_step": req.step_id,
+            "resolution": req.resolution,
+            "checkpoint": updated_chk.model_dump(),
+        }
+    except KeyError as e:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=str(e))
+    except ValueError as e:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(e))
 
 @app.get("/api/tasks/{task_id}/report", tags=["Tasks & DAGs"])
 def get_task_report(task_id: str):

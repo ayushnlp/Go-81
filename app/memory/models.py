@@ -198,6 +198,22 @@ class MemoryExport(BaseModel):
 # Task Recovery Schemas
 # ============================================================================
 
+class DispatchState(str, Enum):
+    """
+    Two-phase and crash-consistent dispatch states for the Execution Journal.
+    Explicitly distinguishes execution boundaries without ambiguous boolean flags.
+    """
+    PREPARED = "PREPARED"
+    DISPATCHING = "DISPATCHING"
+    RUNNING = "RUNNING"
+    SUCCEEDED = "SUCCEEDED"
+    FAILED = "FAILED"
+    WAITING_APPROVAL = "WAITING_APPROVAL"
+    UNKNOWN_OUTCOME = "UNKNOWN_OUTCOME"
+    RECONCILIATION_REQUIRED = "RECONCILIATION_REQUIRED"
+    CANCELLED = "CANCELLED"
+
+
 class TaskCheckpoint(BaseModel):
     """Persistent task state checkpoint for crash recovery."""
     task_id: str = Field(..., description="Unique task identifier")
@@ -211,6 +227,9 @@ class TaskCheckpoint(BaseModel):
     state_data: Dict[str, Any] = Field(default_factory=dict, description="Arbitrary task execution variables")
     created_at: str = Field(default_factory=utc_now_iso)
     updated_at: str = Field(default_factory=utc_now_iso)
+    checkpoint_version: int = Field(default=1, ge=1, description="Optimistic locking version")
+    lease_holder: Optional[str] = Field(default=None, description="Worker or node holding the execution lease")
+    lease_expires_at: Optional[float] = Field(default=None, description="Epoch timestamp when the lease expires")
 
 
 class TaskExecutionEvent(BaseModel):
@@ -223,6 +242,47 @@ class TaskExecutionEvent(BaseModel):
     idempotency_hash: str = Field(..., description="SHA-256 hash of action inputs to prevent re-execution")
     details: Dict[str, Any] = Field(default_factory=dict, description="Action outputs or error logs")
     recorded_at: str = Field(default_factory=utc_now_iso)
+
+
+class ExecutionJournalEntry(BaseModel):
+    """
+    Relational Execution Journal Record.
+    Captures pre-dispatch intent, exact dispatch state, process metadata, and outcomes.
+    """
+    entry_id: str = Field(..., description="Unique journal record identifier")
+    task_id: str = Field(..., description="Associated task identifier")
+    step_id: str = Field(..., description="Associated step identifier")
+    attempt_id: str = Field(..., description="Unique attempt UUID")
+    action: str = Field(..., description="Skill or action identity")
+    idempotency_class: str = Field(default="READ_ONLY", description="READ_ONLY, IDEMPOTENT, NON_IDEMPOTENT, IRREVERSIBLE_HIGH_RISK")
+    param_hash: str = Field(..., description="Deterministic SHA-256 parameter fingerprint")
+    sanitized_params: Dict[str, Any] = Field(default_factory=dict, description="Sanitized arguments with zero plaintext secrets")
+    dispatch_state: DispatchState = Field(default=DispatchState.PREPARED)
+    approval_ref: Optional[str] = Field(default=None, description="Associated approval token or record ID")
+    pid: Optional[int] = Field(default=None, description="Operating system process ID for tracked subprocesses")
+    process_creation_time: Optional[float] = Field(default=None, description="Exact 64-bit creation timestamp / FILETIME")
+    log_path: Optional[str] = Field(default=None, description="Filesystem path to detached stdout/stderr log")
+    exit_code: Optional[int] = Field(default=None, description="Process or action exit code")
+    result_digest: Optional[str] = Field(default=None, description="SHA-256 digest of result payload")
+    error_message: Optional[str] = Field(default=None, description="Sanitized error message if failed")
+    checkpoint_version: int = Field(default=1, ge=1)
+    recovery_attempts: int = Field(default=0, ge=0)
+    created_at: str = Field(default_factory=utc_now_iso)
+    dispatched_at: Optional[str] = Field(default=None)
+    completed_at: Optional[str] = Field(default=None)
+    updated_at: str = Field(default_factory=utc_now_iso)
+
+
+class SubprocessTrackRecord(BaseModel):
+    """Process identity metadata for safe reattachment and PID reuse rejection."""
+    pid: int
+    process_creation_time: float
+    attempt_id: str
+    command_fingerprint: str
+    log_path: str
+    started_at: str = Field(default_factory=utc_now_iso)
+    is_active: bool = True
+    exit_code: Optional[int] = None
 
 
 # ============================================================================
