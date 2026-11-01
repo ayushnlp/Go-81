@@ -106,6 +106,32 @@ def get_planner() -> TaskPlanner:
     return planner
 
 
+# Stage 9 Sentinel Manager Singleton
+sentinel_manager: Optional[Any] = None
+
+
+def get_sentinel_manager() -> Any:
+    global sentinel_manager
+    if SubsystemContainer.db is None:
+        db_path = os.environ.get("GO81_DB_PATH", "go81_memory.db")
+        SubsystemContainer.initialize(db_path=db_path)
+        SkillContainer.initialize(SubsystemContainer.db)
+    if sentinel_manager is None:
+        from backend.sentinels.manager import SentinelManager
+        try:
+            from backend.browser.runtime import get_browser_runtime
+            b_runtime = get_browser_runtime()
+        except Exception:
+            b_runtime = None
+        controller = get_agent_controller()
+        sentinel_manager = SentinelManager(
+            db_manager=SubsystemContainer.db,
+            execution_controller=controller,
+            browser_runtime=b_runtime,
+        )
+    return sentinel_manager
+
+
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     # Initialize SQLite database and services on startup
@@ -139,7 +165,16 @@ async def lifespan(app: FastAPI):
     # Initialize orchestrator & planner
     get_orchestrator()
     get_planner()
+
+    # Stage 9 Sentinel Manager Startup
+    sentinel_mgr = get_sentinel_manager()
+    await sentinel_mgr.start()
+
     yield
+
+    # Clean shutdown of sentinel manager
+    if sentinel_manager:
+        await sentinel_manager.stop()
     # Clean shutdown of browser runtime
     try:
         from backend.browser.runtime import get_browser_runtime
@@ -178,6 +213,10 @@ app.add_middleware(
 # Include Member 2's memory and security routes
 app.include_router(memory_router)
 app.include_router(skills_router, prefix="/api")
+
+# Stage 9 Sentinel & Scheduler Routes
+from backend.sentinels.routes import router as sentinels_router
+app.include_router(sentinels_router, prefix="/api")
 
 
 # ============================================================================

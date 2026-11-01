@@ -287,12 +287,113 @@ def _apply_migration_v5(conn: sqlite3.Connection) -> None:
     cursor.execute("CREATE INDEX IF NOT EXISTS idx_checkpoints_lease ON task_checkpoints(lease_holder, lease_expires_at);")
 
 
+def _apply_migration_v6(conn: sqlite3.Connection) -> None:
+    """
+    Migration v6: Background Sentinels, Persistent Scheduler, and Internal Notification Store.
+    Supports autonomous proactive event handling, cron/interval schedules, and bounded alerts.
+    """
+    cursor = conn.cursor()
+
+    # 1. Background Schedules Table
+    cursor.execute("""
+        CREATE TABLE IF NOT EXISTS background_schedules (
+            schedule_id TEXT PRIMARY KEY,
+            name TEXT NOT NULL,
+            schedule_type TEXT NOT NULL,
+            schedule_expr TEXT NOT NULL,
+            timezone TEXT NOT NULL DEFAULT 'UTC',
+            goal TEXT NOT NULL,
+            parameters TEXT NOT NULL DEFAULT '{}',
+            state TEXT NOT NULL DEFAULT 'ENABLED',
+            missed_run_policy TEXT NOT NULL DEFAULT 'SKIP',
+            max_runs INTEGER,
+            runs_completed INTEGER NOT NULL DEFAULT 0,
+            next_run_at TEXT,
+            last_run_at TEXT,
+            lease_holder TEXT,
+            lease_expires_at REAL,
+            created_at TEXT NOT NULL,
+            updated_at TEXT NOT NULL
+        );
+    """)
+    cursor.execute("CREATE INDEX IF NOT EXISTS idx_sched_state_next ON background_schedules(state, next_run_at);")
+    cursor.execute("CREATE INDEX IF NOT EXISTS idx_sched_type ON background_schedules(schedule_type);")
+
+    # 2. Scheduled Job Runs Table (Deduplication & Run History)
+    cursor.execute("""
+        CREATE TABLE IF NOT EXISTS scheduled_job_runs (
+            run_id TEXT PRIMARY KEY,
+            schedule_id TEXT NOT NULL REFERENCES background_schedules(schedule_id) ON DELETE CASCADE,
+            idempotency_key TEXT UNIQUE NOT NULL,
+            scheduled_time TEXT NOT NULL,
+            started_at TEXT NOT NULL,
+            completed_at TEXT,
+            status TEXT NOT NULL,
+            task_id TEXT,
+            error_message TEXT,
+            result_summary TEXT,
+            created_at TEXT NOT NULL
+        );
+    """)
+    cursor.execute("CREATE INDEX IF NOT EXISTS idx_sjr_schedule ON scheduled_job_runs(schedule_id);")
+    cursor.execute("CREATE INDEX IF NOT EXISTS idx_sjr_idempotency ON scheduled_job_runs(idempotency_key);")
+    cursor.execute("CREATE INDEX IF NOT EXISTS idx_sjr_status ON scheduled_job_runs(status);")
+
+    # 3. Sentinel Configurations Table
+    cursor.execute("""
+        CREATE TABLE IF NOT EXISTS sentinel_configs (
+            sentinel_id TEXT PRIMARY KEY,
+            sentinel_type TEXT NOT NULL,
+            name TEXT NOT NULL,
+            enabled INTEGER NOT NULL DEFAULT 1,
+            config_data TEXT NOT NULL DEFAULT '{}',
+            created_at TEXT NOT NULL,
+            updated_at TEXT NOT NULL
+        );
+    """)
+    cursor.execute("CREATE INDEX IF NOT EXISTS idx_sentinel_type ON sentinel_configs(sentinel_type);")
+
+    # 4. Sentinel Event Journal Table (Idempotent Event Log)
+    cursor.execute("""
+        CREATE TABLE IF NOT EXISTS sentinel_event_journal (
+            event_id TEXT PRIMARY KEY,
+            sentinel_id TEXT NOT NULL REFERENCES sentinel_configs(sentinel_id) ON DELETE CASCADE,
+            event_type TEXT NOT NULL,
+            fingerprint TEXT UNIQUE NOT NULL,
+            payload TEXT NOT NULL DEFAULT '{}',
+            handled INTEGER NOT NULL DEFAULT 0,
+            task_id TEXT,
+            created_at TEXT NOT NULL
+        );
+    """)
+    cursor.execute("CREATE INDEX IF NOT EXISTS idx_sej_fingerprint ON sentinel_event_journal(fingerprint);")
+    cursor.execute("CREATE INDEX IF NOT EXISTS idx_sej_sentinel ON sentinel_event_journal(sentinel_id);")
+
+    # 5. Internal Notifications Table
+    cursor.execute("""
+        CREATE TABLE IF NOT EXISTS internal_notifications (
+            notification_id TEXT PRIMARY KEY,
+            category TEXT NOT NULL,
+            severity TEXT NOT NULL,
+            title TEXT NOT NULL,
+            message TEXT NOT NULL,
+            metadata TEXT NOT NULL DEFAULT '{}',
+            read INTEGER NOT NULL DEFAULT 0,
+            dedup_key TEXT,
+            created_at TEXT NOT NULL
+        );
+    """)
+    cursor.execute("CREATE INDEX IF NOT EXISTS idx_notif_read_created ON internal_notifications(read, created_at);")
+    cursor.execute("CREATE INDEX IF NOT EXISTS idx_notif_dedup ON internal_notifications(dedup_key);")
+
+
 MIGRATIONS = {
     1: _apply_migration_v1,
     2: _apply_migration_v2,
     3: _apply_migration_v3,
     4: _apply_migration_v4,
     5: _apply_migration_v5,
+    6: _apply_migration_v6,
 }
 
 
@@ -306,11 +407,12 @@ class DatabaseManager:
     Guarantees thread-safe connections and persistence across application restarts.
     """
 
-    def __init__(self, db_path: str = "go81_memory.db"):
+    def __init__(self, db_path: str = "go81_memory.db", auto_upgrade_v6: bool = False):
         resolved_path = db_path
         if db_path == "go81_memory.db":
             resolved_path = os.environ.get("GO81_DB_PATH", db_path)
         self.db_path = os.path.abspath(resolved_path)
+        self.auto_upgrade_v6 = auto_upgrade_v6 or (os.environ.get("GO81_AUTO_MIGRATE_V6") == "1")
         # Ensure parent directory exists
         parent_dir = os.path.dirname(self.db_path)
         if parent_dir and not os.path.exists(parent_dir):
@@ -366,8 +468,9 @@ class DatabaseManager:
             current_version = row[0] if (row and row[0] is not None) else 0
 
             # Apply pending migrations incrementally
+            max_ver = 6 if self.auto_upgrade_v6 else 5
             for ver in sorted(MIGRATIONS.keys()):
-                if ver > current_version:
+                if ver <= max_ver and ver > current_version:
                     logger.info(f"Applying schema migration version {ver} to {self.db_path}")
                     with self.transaction() as tx_conn:
                         MIGRATIONS[ver](tx_conn)
@@ -375,6 +478,25 @@ class DatabaseManager:
                             "INSERT INTO schema_migrations (version, applied_at) VALUES (?, ?);",
                             (ver, utc_now()),
                         )
+        finally:
+            conn.close()
+
+    def apply_migration_v6(self) -> None:
+        """Applies schema migration version 6 if not already applied."""
+        conn = self.get_connection()
+        try:
+            cursor = conn.cursor()
+            cursor.execute("SELECT MAX(version) FROM schema_migrations;")
+            row = cursor.fetchone()
+            current_version = row[0] if (row and row[0] is not None) else 0
+            if current_version < 6:
+                logger.info(f"Applying schema migration version 6 to {self.db_path}")
+                with self.transaction() as tx_conn:
+                    _apply_migration_v6(tx_conn)
+                    tx_conn.execute(
+                        "INSERT OR REPLACE INTO schema_migrations (version, applied_at) VALUES (?, ?);",
+                        (6, utc_now()),
+                    )
         finally:
             conn.close()
 
